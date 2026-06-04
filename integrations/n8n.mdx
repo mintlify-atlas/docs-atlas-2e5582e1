@@ -26,7 +26,7 @@ Autonomous n8n agents face what Archestra calls the **Lethal Trifecta**: a dange
 
 With Archestra in place, every LLM request from your n8n agent is validated before it reaches the model. When untrusted data enters the conversation, Archestra automatically restricts dangerous follow-on tool calls while letting safe ones proceed.
 
-```
+```text
 n8n AI Agent ──► Archestra Proxy ──► OpenAI API
      │                                    │
      └── MCP Client ──► GitHub API ◄──────┘

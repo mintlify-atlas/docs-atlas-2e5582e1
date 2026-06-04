@@ -15,12 +15,12 @@ flowchart TD
     Start([Original prompt from user]) --> Decision{Context safe?}
 
     Decision -->|Yes| ToolCall[Make a tool call]
-    Decision -->|No| AddContext[Add to context that\ntool is not allowed]
+    Decision -->|No| AddContext[Add to context that<br/>tool is not allowed]
 
     ToolCall --> Check{Tool result safe?}
 
-    Check -->|Yes| AddTrusted[Add to context and\ncontinue the loop]
-    Check -->|No| MarkUntrusted[Mark context as sensitive\nor sanitize via Dual LLM]
+    Check -->|Yes| AddTrusted[Add to context and<br/>continue the loop]
+    Check -->|No| MarkUntrusted[Mark context as sensitive<br/>or sanitize via Dual LLM]
 
     AddTrusted --> Talk[Talk to user if necessary]
     MarkUntrusted --> Talk

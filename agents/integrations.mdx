@@ -136,7 +136,7 @@ Archestra connects to Slack channels so that users can mention the bot to invoke
 
 When you first mention the bot in a channel, it responds with a list of available agents to choose from. After selection, all future mentions in that channel go to the selected agent.
 
-```
+```text
 @BotName what's the status of service X?
 ```
 
@@ -154,11 +154,18 @@ Use `/archestra-select-agent` to change the default agent for a channel at any t
 
 Use the `AgentName >` syntax to temporarily route a single message to a different agent without changing the channel default:
 
-```
+```text
 @BotName Sales > what's our Q4 pipeline?
 ```
 
 Agent names are matched case-insensitively; spaces are optional. If the agent name is not found, the message falls back to the default agent with a notice.
+
+| Message | Routed To |
+| --- | --- |
+| `@BotName hello` | Default agent |
+| `@BotName Sales > check revenue` | Sales agent |
+| `@BotName support > help me` | Support agent |
+| `@BotName Unknown > test` | Default agent (with fallback notice) |
 
 #### Direct Messages
 
@@ -217,7 +224,7 @@ Archestra connects to Microsoft Teams channels via an Azure Bot. When users ment
 
 When you first mention the bot in a channel, it responds with an Adaptive Card dropdown to select which agent handles the channel. After selection, the bot processes your message and all future messages in that channel.
 
-```
+```text
 @Archestra what's the status of service X?
 ```
 
@@ -233,7 +240,7 @@ When you first mention the bot in a channel, it responds with an Adaptive Card d
 
 Use the `AgentName >` syntax to temporarily route a single message to a different agent:
 
-```
+```text
 @Archestra Sales > what's our Q4 pipeline?
 ```
 

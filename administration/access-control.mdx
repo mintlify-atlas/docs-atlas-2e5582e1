@@ -1,5 +1,5 @@
 ---
-title: "Role-Based Access Control in Archestra Platform"
+title: "Role-Based Access Control in the Archestra Platform"
 sidebarTitle: "Access Control"
 description: "Manage user permissions with predefined and custom RBAC roles, team-based resource scoping, service accounts, and API key management."
 ---
@@ -44,17 +44,27 @@ The following roles are built into Archestra and cannot be modified or deleted.
 | Tools & Policies | `read`, `create`, `update`, `delete` |
 | MCP Registry | `read`, `create`, `update`, `delete`, `team-admin` |
 | MCP Server Installations | `read`, `create`, `update`, `delete` |
+| MCP Server Installation Requests | `read`, `create`, `update`, `delete` |
 | Environments | `admin` |
+| GitHub App Configurations | `read`, `create`, `update`, `delete` |
 | Knowledge Files | `read`, `create`, `update`, `delete` |
 | Knowledge Sources | `read`, `create`, `update`, `delete`, `query` |
 | Chats | `read`, `create`, `update`, `delete` |
 | Logs | `read` |
 | API Keys | `read`, `create`, `delete` |
+| LLM Settings | `read`, `update` |
+| Knowledge Settings | `read`, `update` |
 | Users | `read` |
+| Invitations | `read` |
 | Roles | `read` |
 | Teams | `read` |
 | Identity Providers | `read` |
+| Secrets | `read` |
 | Organization Settings | `read`, `update` |
+| Site Notifications | `read` |
+| Chat Agent Picker | `enable` |
+| Chat Provider Settings | `enable` |
+| Chat Expand Tool Calls | `enable` |
 
 </Accordion>
 
@@ -70,16 +80,23 @@ The following roles are built into Archestra and cannot be modified or deleted.
 | LLM Proxies | `read`, `create`, `update`, `delete` |
 | LLM Provider API Keys | `read` |
 | LLM Virtual Keys | `read` |
+| LLM OAuth Clients | `read` |
 | LLM Models | `read` |
 | MCP Gateways | `read`, `create`, `update`, `delete` |
 | Tools & Policies | `read` |
 | MCP Registry | `read` |
 | MCP Server Installations | `read`, `create`, `delete` |
+| MCP Server Installation Requests | `read`, `create`, `update` |
 | Knowledge Files | `read` |
 | Knowledge Sources | `read`, `query` |
 | Chats | `read`, `create`, `update`, `delete` |
 | API Keys | `read`, `create`, `delete` |
 | Teams | `read` |
+| Site Notifications | `read` |
+| Simple View | `enable` |
+| Chat Agent Picker | `enable` |
+| Chat Provider Settings | `enable` |
+| Chat Expand Tool Calls | `enable` |
 
 </Accordion>
 
@@ -121,6 +138,8 @@ Use clear, descriptive names for custom roles that indicate their purpose, such 
 | `skill:team-admin` | Manage team assignments for agent skills |
 | `skill:admin` | Full administrative control over all agent skills |
 | `skill:execute` | Execute skill scripts |
+| `agentSettings:read` | View agent settings (default model, default agent, security engine, file uploads) |
+| `agentSettings:update` | Modify agent settings (default model, default agent, security engine, file uploads) |
 | `agentTrigger:read` | View agent trigger configurations |
 | `agentTrigger:create` | Set up new agent triggers |
 | `agentTrigger:update` | Modify agent trigger configurations |
@@ -153,6 +172,13 @@ Use clear, descriptive names for custom roles that indicate their purpose, such 
 | `llmVirtualKey:update` | Modify LLM virtual keys and their visibility |
 | `llmVirtualKey:delete` | Delete LLM virtual keys |
 | `llmVirtualKey:admin` | Manage all LLM virtual keys and view every scope |
+| `llmOauthClient:read` | View LLM OAuth client registrations |
+| `llmOauthClient:create` | Create LLM OAuth client registrations |
+| `llmOauthClient:update` | Modify LLM OAuth client registrations |
+| `llmOauthClient:delete` | Delete LLM OAuth client registrations |
+| `llmOauthClient:admin` | Manage all LLM OAuth client registrations |
+| `llmSettings:read` | View LLM settings (compression, cleanup interval) |
+| `llmSettings:update` | Modify LLM settings |
 | `llmModel:read` | View synced LLM models and capabilities |
 | `llmModel:update` | Modify LLM model pricing and modality settings |
 | `llmLimit:read` | View token usage limits |
@@ -187,6 +213,11 @@ Use clear, descriptive names for custom roles that indicate their purpose, such 
 | `mcpServerInstallation:update` | Modify installed MCP server configuration |
 | `mcpServerInstallation:delete` | Uninstall MCP servers |
 | `mcpServerInstallation:admin` | Approve or manage all MCP server installations |
+| `mcpServerInstallationRequest:read` | View MCP server installation requests |
+| `mcpServerInstallationRequest:create` | Submit requests to install MCP servers |
+| `mcpServerInstallationRequest:update` | Add notes to installation requests |
+| `mcpServerInstallationRequest:delete` | Delete installation requests |
+| `mcpServerInstallationRequest:admin` | Approve or decline installation requests |
 | `toolPolicy:read` | View tools, tool invocation policies, and trusted data policies |
 | `toolPolicy:create` | Register tools and create security policies |
 | `toolPolicy:update` | Modify tools, tool configuration, and security policies |
@@ -209,6 +240,8 @@ Use clear, descriptive names for custom roles that indicate their purpose, such 
 | `knowledgeSource:delete` | Delete Knowledge Bases and Connectors |
 | `knowledgeSource:query` | Query knowledge sources for information retrieval |
 | `knowledgeSource:admin` | View all Knowledge Bases and Connectors, bypassing visibility restrictions |
+| `knowledgeSettings:read` | View knowledge settings (embedding and reranking models) |
+| `knowledgeSettings:update` | Modify knowledge settings (embedding and reranking models) |
 
 </Accordion>
 
@@ -233,6 +266,12 @@ Use clear, descriptive names for custom roles that indicate their purpose, such 
 | `identityProvider:create` | Set up new identity providers |
 | `identityProvider:update` | Modify identity provider settings |
 | `identityProvider:delete` | Remove identity providers |
+| `environment:admin` | Create, edit, and delete deployment environments (everyone can view them) |
+| `environment:deploy-to-restricted` | Deploy catalog items to restricted environments |
+| `githubAppConfig:read` | View GitHub App configurations |
+| `githubAppConfig:create` | Create GitHub App configurations |
+| `githubAppConfig:update` | Modify GitHub App configurations |
+| `githubAppConfig:delete` | Delete GitHub App configurations |
 | `auditLog:read` | View the organization-wide audit log of administrative actions |
 
 </Accordion>
@@ -257,6 +296,11 @@ Use clear, descriptive names for custom roles that indicate their purpose, such 
 | `chatAgentPicker:enable` | Show agent picker in chat |
 | `chatExpandToolCalls:enable` | Allow expanding tool call details in chat |
 | `chatProviderSettings:enable` | Show model and API key selectors in chat |
+| `simpleView:enable` | Sidebar is collapsed by default on page load |
+| `siteNotification:read` | View site-wide notifications |
+| `siteNotification:create` | Create new site notifications |
+| `siteNotification:update` | Modify site notifications |
+| `siteNotification:delete` | Delete site notifications |
 | `log:read` | View LLM proxy and MCP tool call logs |
 
 </Accordion>

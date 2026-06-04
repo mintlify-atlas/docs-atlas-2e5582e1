@@ -20,6 +20,7 @@ These variables configure the core application — database connectivity, URL ro
 | `ARCHESTRA_AUTH_ADMIN_EMAIL` | `admin@localhost.ai` | Email address for the default admin user, created on first startup. |
 | `ARCHESTRA_AUTH_ADMIN_PASSWORD` | `password` | Password for the default admin user. **Change this immediately in production.** |
 | `ARCHESTRA_ANALYTICS` | `enabled` | Controls PostHog analytics for product improvements. Set to `disabled` to opt out. |
+| `ARCHESTRA_LOGGING_LEVEL` | `info` | Log level for the platform. Supported values: `trace`, `debug`, `info`, `warn`, `error`, `fatal`. |
 
 **Examples:**
 
@@ -187,7 +188,7 @@ These variables configure the Prometheus metrics endpoint and OpenTelemetry trac
 | `ARCHESTRA_OTEL_CAPTURE_CONTENT` | `true` | When enabled, captures prompt/completion content and tool call arguments/results as span events. Set to `false` for privacy or to reduce span sizes. |
 | `ARCHESTRA_OTEL_CONTENT_MAX_LENGTH` | `10000` | Maximum characters per captured content event. Content exceeding this limit is truncated with a `...[truncated]` suffix. |
 | `ARCHESTRA_OTEL_VERBOSE_TRACING` | `false` | When `true`, includes infrastructure spans (HTTP routes, outgoing HTTP calls) in addition to GenAI-specific spans. Use for debugging only. |
-| `ARCHESTRA_OTEL_TRACES_SAMPLE_RATE` | `1.0` | Sampling rate for OTEL traces (0–1). Uses `ParentBasedSampler` with `TraceIdRatioBasedSampler`. |
+| `ARCHESTRA_OTEL_TRACES_SAMPLE_RATE` | `1.0` | Sampling rate for OTEL traces (0 to 1). Uses `ParentBasedSampler` with `TraceIdRatioBasedSampler`. |
 | `ARCHESTRA_METRICS_PORT` | `9050` | TCP port for the Prometheus metrics server. |
 | `ARCHESTRA_METRICS_SECRET` | `archestra-metrics-secret` | Bearer token for authenticating access to `/metrics`. When set, scrapers must include `Authorization: Bearer <token>`. |
 

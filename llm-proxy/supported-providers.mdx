@@ -1,7 +1,7 @@
 ---
-title: "Supported LLM Providers in Archestra Platform"
+title: "Supported LLM Providers: Archestra Platform Reference"
 sidebarTitle: "Providers"
-description: "Connection details, authentication, and setup steps for every LLM provider supported by the Archestra LLM Proxy, including cloud, self-hosted, and IAM-authenticated options."
+description: "Connection details and setup for all 18 LLM providers in Archestra: OpenAI, Anthropic, Gemini, Azure, Bedrock, Groq, Mistral, and more."
 ---
 
 Archestra acts as a security proxy between your AI applications and LLM providers, supporting a broad range of cloud APIs, enterprise-managed services, and self-hosted inference engines. Each provider has a dedicated proxy route with its own base URL and authentication method. For providers that require cloud IAM — Vertex AI and AWS Bedrock — Archestra integrates with workload identity so no API keys are needed at runtime.
@@ -512,9 +512,9 @@ Use provider-qualified model IDs for deterministic routing: `openai:gpt-5.4`, `a
 </Accordion>
 
 <Accordion title="DeepSeek">
-  DeepSeek offers high-performance language models. Use the Model Router to route to DeepSeek with the `deepseek:` model prefix.
+  DeepSeek models are accessible through AWS Bedrock inference profiles. Use the `deepseek:` provider prefix with the Model Router to route requests to DeepSeek models configured in your AWS account.
 
-  DeepSeek is supported through the Bedrock inference profiles and the Model Router. Configure access through AWS Bedrock or a direct DeepSeek API key via the OpenAI-compatible route.
+  Configure access by following the [AWS Bedrock](#aws-bedrock) setup above and enabling the DeepSeek inference profiles in your AWS account. The `ARCHESTRA_BEDROCK_ALLOWED_PROVIDERS` variable can be set to include `deepseek` to surface only DeepSeek models in the picker.
 </Accordion>
 
 <Accordion title="MiniMax">

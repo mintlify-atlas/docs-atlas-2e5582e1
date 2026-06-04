@@ -1,7 +1,7 @@
 ---
 title: "Archestra REST API Reference and Authentication Guide"
 sidebarTitle: "API Overview"
-description: "Complete reference for the Archestra REST API — authentication, base URL, key resource areas, rate limits, and the OpenAPI spec."
+description: "Complete reference for the Archestra REST API — covering authentication, base URLs, key resource areas, rate limits, curl examples, and the OpenAPI spec."
 ---
 
 The Archestra platform exposes a REST API that lets you manage every resource available in the UI — agents, MCP registry entries, MCP gateways, LLM proxies, knowledge bases, and more — from scripts, CI pipelines, or infrastructure-as-code tools. Every request must carry a valid credential in the `Authorization` header, and all endpoints are served from a single base URL that you can override for production deployments.
@@ -101,7 +101,7 @@ The Archestra API enforces no rate limits by default. Organization-level usage l
 
 The complete OpenAPI 3.0 spec for the Archestra API (version 1.2.56) is served directly from your instance:
 
-```
+```http
 GET /openapi.json
 ```
 

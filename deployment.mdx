@@ -1,7 +1,7 @@
 ---
 title: "Deploying Archestra: Docker, Helm, and Production Guide"
 sidebarTitle: "Deployment"
-description: "Deploy Archestra Platform with Docker for development or Helm for production, including cloud timeout config, Terraform/Crossplane IaC, and key environment variables."
+description: "Deploy Archestra with Docker or Helm. Covers cloud timeout configs, Terraform and Crossplane IaC, and the key environment variables for production."
 ---
 
 Archestra Platform can be deployed using Docker for development and testing, or Helm for production environments. Both deployment methods expose the Admin UI on port **3000** and the API on port **9000**. This guide walks through every deployment path — from a single-command local setup to a fully hardened Kubernetes production deployment with Infrastructure as Code.
@@ -131,7 +131,7 @@ The Helm chart provides extensive configuration options. For the full reference,
 
 #### Auth Secret
 
-`ARCHESTRA_AUTH_SECRET` is optional — the Helm chart auto-generates a 64-character value on first install and stores it in a `<release>-auth` Secret. To manage the secret yourself:
+`ARCHESTRA_AUTH_SECRET` is optional — the Helm chart auto-generates a 64-character value on first install and stores it in a `RELEASE_NAME-auth` Secret. To manage the secret yourself:
 
 ```yaml
 archestra:
@@ -220,8 +220,8 @@ When the HPA is enabled, the chart defaults to a minimum of 2 web pods, scales u
 
     The Helm chart creates two BackendConfig resources:
 
-    - `<release>-archestra-platform-backend-config` — For the API backend (port 9000)
-    - `<release>-archestra-platform-frontend-config` — For the frontend (port 3000)
+    - `RELEASE_NAME-archestra-platform-backend-config` — For the API backend (port 9000)
+    - `RELEASE_NAME-archestra-platform-frontend-config` — For the frontend (port 3000)
   </Tab>
   <Tab title="AWS EKS">
     For AWS EKS with the Application Load Balancer (ALB), configure timeout annotations on the Service:
@@ -422,7 +422,7 @@ The following tables cover the most important environment variables for configur
 |---|---|---|
 | `ARCHESTRA_OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP endpoint for sending traces | `http://localhost:4318/v1/traces` |
 | `ARCHESTRA_OTEL_CAPTURE_CONTENT` | Capture prompt/completion content in trace spans | `true` |
-| `ARCHESTRA_OTEL_TRACES_SAMPLE_RATE` | Trace sampling rate, 0–1 | `1.0` |
+| `ARCHESTRA_OTEL_TRACES_SAMPLE_RATE` | Trace sampling rate, 0 to 1 | `1.0` |
 | `ARCHESTRA_METRICS_PORT` | TCP port for the Prometheus metrics server | `9050` |
 | `ARCHESTRA_METRICS_SECRET` | Bearer token required to access `/metrics` | `archestra-metrics-secret` |
 

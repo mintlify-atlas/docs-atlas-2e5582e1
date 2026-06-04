@@ -1,5 +1,5 @@
 ---
-title: "LLM Proxy Authentication Methods and Key Scoping"
+title: "LLM Proxy Authentication: API Keys, OAuth, and JWKS"
 sidebarTitle: "Authentication"
 description: "Configure direct provider keys, virtual API keys, OAuth client credentials, user OAuth, and JWKS identity providers for the Archestra LLM Proxy."
 ---
@@ -65,6 +65,10 @@ Virtual API keys are platform-managed bearer tokens that map to one or more prov
     Copy the generated token immediately — it is shown only once.
   </Step>
 </Steps>
+
+<Note>
+  The maximum number of virtual keys per LLM API key is controlled by the `ARCHESTRA_LLM_PROXY_MAX_VIRTUAL_KEYS` environment variable (default: `10`).
+</Note>
 
 ### Using Virtual Keys
 

@@ -1,5 +1,5 @@
 ---
-title: "Single Sign-On Configuration and Provider Setup"
+title: "Single Sign-On Configuration and Provider Setup Guide"
 sidebarTitle: "SSO"
 description: "Configure OIDC and SAML SSO for Archestra, including role mapping, team sync, and end-to-end Okta and Microsoft Entra ID walkthroughs."
 ---
@@ -227,7 +227,7 @@ Group matching is **case-insensitive**. A single team can be linked to multiple 
 
 <Tabs>
   <Tab title="Okta">
-    This walkthrough configures Okta OIDC sign-in for Archestra. After completing Part 1, users can sign in with Okta. Parts 2–4 optionally layer Okta-managed token exchange for per-user downstream MCP tool calls.
+    This walkthrough configures Okta OIDC sign-in for Archestra. After completing Part 1, users can sign in with Okta. Parts 2-4 optionally layer Okta-managed token exchange for per-user downstream MCP tool calls.
 
     ### Part 1 — Register the Okta App
 
@@ -319,7 +319,7 @@ Group matching is **case-insensitive**. A single team can be linked to multiple 
     - **Login fails after redirect** — The Okta **Sign-in redirect URI** must exactly match the Archestra callback URL, including the case-sensitive `Okta` segment.
   </Tab>
   <Tab title="Microsoft Entra ID">
-    This walkthrough configures Microsoft Entra ID OIDC sign-in. Parts 1–3 cover SSO. Parts 4–6 add On-Behalf-Of (OBO) token exchange so agents can call Entra-protected APIs as the signed-in user.
+    This walkthrough configures Microsoft Entra ID OIDC sign-in. Parts 1-3 cover SSO. Parts 4-6 add On-Behalf-Of (OBO) token exchange so agents can call Entra-protected APIs as the signed-in user.
 
     ### Part 1 — Register the Entra App
 

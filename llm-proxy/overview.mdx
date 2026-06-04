@@ -1,5 +1,5 @@
 ---
-title: "LLM Proxy: Secure Gateway for AI Applications"
+title: "LLM Proxy Overview: Secure AI Gateway and Model Router"
 sidebarTitle: "Overview"
 description: "Learn how Archestra's LLM Proxy intercepts AI traffic, enforces security policies, and routes requests to cloud or self-hosted LLM providers."
 ---
@@ -114,7 +114,7 @@ Archestra supports optional custom headers that enrich logs, metrics, and traces
 | `X-Archestra-User-Id` | Associates the request with a specific Archestra user. Automatically included when using built-in Archestra Chat. | `123e4567-e89b-12d3-a456-426614174000` |
 | `X-Archestra-Session-Id` | Groups related LLM requests into a session — included in trace attributes as `gen_ai.conversation.id`. | `session-abc-123` |
 | `X-Archestra-Execution-Id` | Associates the request with a specific execution run. Used for the `agent_executions_total` Prometheus metric. | `exec-run-456` |
-| `X-Archestra-Meta` | Composite header combining agent ID, execution ID, and session ID as `<agent-id>/<execution-id>/<session-id>`. Any segment can be empty. Individual headers take precedence. Values must not contain `/`. | `my-agent/exec-123/session-456` |
+| `X-Archestra-Meta` | Composite header combining agent ID, execution ID, and session ID in one value. Format: `{agent-id}/{execution-id}/{session-id}`. Any segment can be empty. Individual headers take precedence. Values must not contain `/`. | `my-agent/exec-123/session-456` |
 
 ### Usage Examples
 

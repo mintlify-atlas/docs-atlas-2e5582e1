@@ -197,11 +197,11 @@ Three tools are especially relevant to the MCP tool layer:
 
 ### `search_tools`
 
-Searches the gateway's available tools on demand using a natural-language query. Returns tool names, descriptions, argument signatures, and source information.
+Searches available tools on demand using a natural-language query. Returns tool names, descriptions, argument signatures, and source information.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `query` | `string` | Yes | Natural-language description of the capability you need |
+| `query` | `string` | Yes | Natural-language search query describing the capability you need. Searches tool names, descriptions, argument names, and argument descriptions. |
 | `limit` | `integer` | No | Maximum number of matching tools to return |
 
 `search_tools` is automatically enabled on any gateway or agent that has **Load tools when needed** mode active. It does not appear in the built-in tool picker because it is implicitly included.
@@ -212,7 +212,7 @@ Dispatches to any tool available to the agent or gateway, including built-in pla
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `tool_name` | `string` | Yes | Exact tool name (e.g., `archestra__whoami`, `context7__resolve-library-id`, `agent-<id>`) |
+| `tool_name` | `string` | Yes | Exact tool name (e.g., `archestra__whoami`, `context7__resolve-library-id`, `agent-{id}`) |
 | `tool_args` | `object` | No | Arguments object matching the target tool's input schema |
 
 <Warning>

@@ -38,6 +38,9 @@ graph LR
   <Card title="Authentication" icon="lock" href="/mcp/authentication">
     The gateway and upstream credential model. Clients authenticate to Archestra once; Archestra resolves the credential needed by each upstream MCP server at tool-call time.
   </Card>
+  <Card title="Archestra MCP Server" icon="sparkles" href="/mcp/authentication#archestra-mcp-server-tools">
+    Built-in tools for managing platform resources such as agents, MCP gateways, registry entries, policies, and limits. Ships with the platform and requires no installation.
+  </Card>
 </CardGroup>
 
 ## Server Runtimes
@@ -82,7 +85,7 @@ The Archestra MCP Server is a built-in server that ships with the platform and r
 
 Two tools are available on every gateway when **Load tools when needed** mode is enabled:
 
-- **`search_tools`** — discovers tools assigned to the gateway by natural-language query.
+- **`search_tools`** — searches available tools on demand using a natural-language query.
 - **`run_tool`** — dispatches to any tool available to the agent or gateway, including third-party MCP tools.
 
 `query_knowledge_sources` is automatically assigned to Agents and MCP Gateways that have at least one knowledge base or knowledge connector attached.

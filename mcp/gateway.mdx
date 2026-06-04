@@ -149,11 +149,17 @@ MCP Gateways support four client authentication paths:
   See [MCP Authentication](/mcp/authentication) for the complete gateway and upstream credential model, including enterprise IdP token exchange and dynamic credential resolution.
 </Tip>
 
+## Access Control
+
+Gateway access depends on both the caller and the gateway configuration. A user must be allowed to see the MCP Gateway — usually through organization visibility or team membership — and the gateway must have the specific tool assigned to it.
+
+If a gateway is scoped to one team, members outside that team cannot use it even if the underlying MCP server exists in the registry. This lets admins approve MCP servers centrally while still exposing different tool sets to different teams or clients.
+
 ## Load Tools When Needed
 
 By default, a gateway exposes every assigned tool through MCP `tools/list`. For larger toolsets, enable **Load tools when needed** in the gateway dialog. This keeps the initial tool list small by surfacing only two built-in tools first:
 
-- **`search_tools`** — discovers assigned tools by natural-language query
+- **`search_tools`** — searches available tools on demand by natural-language query
 - **`run_tool`** — dispatches to any tool available to the gateway, including third-party MCP tools
 
 The rest of the gateway's assigned tools remain available on demand: `search_tools` can discover them and `run_tool` can execute them.

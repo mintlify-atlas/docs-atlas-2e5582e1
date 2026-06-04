@@ -62,7 +62,7 @@ Enable **Load tools when needed** to keep the initial tool list small. When acti
 - **`search_tools`** — discovers assigned tools by name or description
 - **`run_tool`** — executes any assigned tool by name
 
-The full assigned toolset remains accessible; the model just fetches what it needs rather than receiving everything upfront. Tool call policies still apply: if the model uses `run_tool` to call `send_email`, Archestra evaluates the `send_email` policy with the same arguments and context as a direct call.
+The full assigned toolset remains accessible; the model just fetches what it needs rather than receiving everything upfront. [Tool call policies](/security/tool-guardrails) still apply: if the model uses `run_tool` to call `send_email`, Archestra evaluates the `send_email` policy with the same arguments and context as a direct call.
 
 <Note>
   `search_tools` and `run_tool` are enabled implicitly when this mode is on — you do not need to assign them manually.
@@ -76,7 +76,7 @@ Knowledge sources are configured separately and reused across multiple agents. S
 
 ## Delegation
 
-Agents can delegate subtasks to other agents. Archestra tracks the full call chain for observability across the entire run. Delegated agents inherit the current tool guardrails trust state, so downstream policy enforcement does not reset mid-run.
+Agents can delegate subtasks to other agents. Archestra tracks the full call chain for observability across the entire run. Delegated agents inherit the current [tool guardrails](/security/tool-guardrails) trust state, so downstream policy enforcement does not reset mid-run.
 
 ## Convert to Skill
 

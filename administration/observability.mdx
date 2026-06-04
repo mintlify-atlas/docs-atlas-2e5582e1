@@ -1,7 +1,7 @@
 ---
-title: "Observability: Metrics, Tracing, and Dashboards"
+title: "Observability: Prometheus Metrics, Tracing, and Dashboards"
 sidebarTitle: "Observability"
-description: "Monitor Archestra with Prometheus metrics on port 9050, OpenTelemetry tracing, five Grafana dashboards, and p95 latency of 31ms."
+description: "Monitor Archestra with Prometheus metrics on port 9050, OpenTelemetry tracing, five pre-built Grafana dashboards, and p95 latency of 31ms."
 ---
 
 Archestra exposes Prometheus metrics and OpenTelemetry traces for monitoring system health, tracking HTTP requests, and analyzing LLM API performance. The web process exposes metrics at `http://localhost:9050/metrics`, and when the separate worker deployment is enabled (the default for Helm deployments), the worker exposes its own metrics endpoint at `http://<worker-host>:9000/metrics`. Production scrape configurations should collect **both endpoints** — task queue metrics and Knowledge Base pipeline metrics (connector syncs, embedding batches) are emitted from the worker process.
@@ -271,7 +271,7 @@ GRAFANA_URL=https://example.grafana.net GRAFANA_TOKEN=glsa_xxx \
 
 ## Performance Benchmarks
 
-Archestra adds approximately **30–50ms latency per request** while providing enterprise-grade security and policy enforcement for LLM applications.
+Archestra adds approximately **30-50ms latency per request** while providing enterprise-grade security and policy enforcement for LLM applications.
 
 | Metric | Value |
 |---|---|

@@ -24,7 +24,7 @@ Scheduled Tasks run an agent automatically on a repeating schedule. Each run sen
   <Step title="Set the schedule">
     Choose **Hourly**, **Daily**, or **Custom**. Custom accepts a standard 5-field cron expression evaluated in the creator's timezone.
 
-    ```
+    ```text
     # Cron expression format: minute hour day month weekday
     */15 * * * *    # every fifteen minutes
     0 9 1 * *       # 09:00 on the first of each month
@@ -67,7 +67,7 @@ The AgentCard advertises the agent's name, description, and a single skill. A2A 
 
 Both endpoints require an Archestra token in the `Authorization` header:
 
-```
+```http
 Authorization: Bearer <platform_token>
 ```
 
@@ -162,7 +162,7 @@ curl -X POST https://archestra.example.com/v2/a2a/<agentId> \
 
 ### Approvals
 
-When a tool call hits a policy requiring human approval, the response contains a `task` instead of a `message`:
+When a tool call hits a [tool invocation policy](/security/tool-guardrails) requiring human approval, the response contains a `task` instead of a `message`:
 
 ```json
 {
@@ -288,13 +288,13 @@ Archestra needs a public webhook URL for Microsoft Graph notifications.
 
 Each enabled agent gets an alias following this pattern:
 
-```
+```text
 <mailbox-local>+agent-<agentId>@<domain>
 ```
 
 For example, if your mailbox is `agents@company.com` and your agent ID is `abc12345-6789-...`, the alias is:
 
-```
+```text
 agents+agent-abc123456789...@company.com
 ```
 

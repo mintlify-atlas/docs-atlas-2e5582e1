@@ -121,7 +121,6 @@ Installation scope controls who sees and can use an installed connection:
 |---|---|
 | Personal | The owning user only |
 | Team | All members of the team |
-| Org | All organization members (admin-only) |
 
 ## Environments and Network Policies
 
@@ -135,10 +134,10 @@ Network egress policies are configured on environments. They can disable interne
 
 | Cluster Provider | IP/CIDR Rules | Domain Rules |
 |---|---|---|
-| EKS Auto Mode | Kubernetes `NetworkPolicy` | AWS `ApplicationNetworkPolicy` (requires EKS Auto Mode Network Policy Controller) |
-| EKS with AWS VPC CNI | Kubernetes `NetworkPolicy` | Not supported |
-| AKS | Kubernetes `NetworkPolicy` | Cilium `CiliumNetworkPolicy` (requires Cilium CRD) |
-| GKE | Kubernetes `NetworkPolicy` | GKE `FQDNNetworkPolicy` (requires GKE Dataplane V2) |
+| EKS Auto Mode | Kubernetes `NetworkPolicy` | AWS `ApplicationNetworkPolicy` (when EKS Auto Mode Network Policy Controller is enabled) |
+| EKS with AWS VPC CNI | Kubernetes `NetworkPolicy` | Not supported outside EKS Auto Mode DNS-based policies |
+| AKS | Kubernetes `NetworkPolicy` | Cilium `CiliumNetworkPolicy` (when cluster exposes the Cilium CRD) |
+| GKE | Kubernetes `NetworkPolicy` | GKE `FQDNNetworkPolicy` (when GKE Dataplane V2 and FQDN network policy are enabled) |
 | Cilium-enabled clusters | Kubernetes `NetworkPolicy` or Cilium policy | Cilium `CiliumNetworkPolicy` |
 
 <Note>

@@ -8,7 +8,7 @@ Pydantic AI is a Python agent framework from the creators of Pydantic that provi
 
 ## The Vulnerability
 
-In this guide, the example agent demonstrates a real [Lethal Trifecta](https://www.archestra.ai/docs/platform-lethal-trifecta) attack path:
+In this guide, the example agent demonstrates a real [Lethal Trifecta](/security/overview) attack path:
 
 1. The agent has access to external data via a `get_github_issue` tool.
 2. It processes a GitHub issue ([archestra-ai/archestra#669](https://github.com/archestra-ai/archestra/issues/669)) that contains hidden markdown with a prompt injection payload.
@@ -22,7 +22,7 @@ In this guide, the example agent demonstrates a real [Lethal Trifecta](https://w
 
 <Steps>
   <Step title="Get Your LLM Provider API Key">
-    This example uses OpenAI. Archestra supports multiple providers — see [Supported LLM Providers](https://www.archestra.ai/docs/platform-supported-llm-providers) for the full list.
+    This example uses OpenAI. Archestra supports multiple providers — see [Supported LLM Providers](/llm-proxy/supported-providers) for the full list.
 
     Obtain an API key from one of the following:
     - [OpenAI platform](https://platform.openai.com/account/api-keys)

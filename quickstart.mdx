@@ -49,7 +49,7 @@ This walkthrough creates an agent that can read and answer questions about the A
   <Step title="Create the Agent">
     Go to **Agents** and create a new agent named **"Archestra Docs Reader Agent"** with the following system prompt:
 
-    ```
+    ```text
     You're using playwright to answer questions about Archestra based on https://archestra.ai/docs/
     ```
   </Step>
@@ -62,7 +62,7 @@ This walkthrough creates an agent that can read and answer questions about the A
   <Step title="Chat with Your Agent">
     Go to **Chat**, choose the **"Archestra Docs Reader Agent"** from the agent selector, and ask:
 
-    ```
+    ```text
     How could I deploy Archestra?
     ```
 
@@ -76,7 +76,7 @@ Archestra is not just a Chat UI — it's a fully capable MCP Gateway. This advan
 
 The request flow looks like this:
 
-```
+```text
 Claude → Archestra MCP Gateway → MCP Orchestrator (K8s) → Playwright Headless Browser
 ```
 
@@ -111,7 +111,7 @@ Claude → Archestra MCP Gateway → MCP Orchestrator (K8s) → Playwright Headl
   <Step title="Ask Claude to Use the Gateway">
     In Claude, prompt it to use the Archestra MCP server:
 
-    ```
+    ```text
     Ask archestra to give you all the deployment options.
     ```
 
