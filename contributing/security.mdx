@@ -1,0 +1,79 @@
+---
+title: Security Policy and Bug Bounty Program at Archestra
+sidebarTitle: Security
+description: Report Archestra security vulnerabilities via email and learn about the bug bounty program that rewards researchers based on severity of their findings.
+---
+
+Archestra is a security-focused platform — protecting AI agents from prompt injection and data exfiltration is our core mission. Holding our own codebase to the same standard matters just as much. This page describes how to report security vulnerabilities responsibly and what to expect in return.
+
+## Responsible Disclosure
+
+If you discover a security vulnerability in Archestra, please report it directly to the security team rather than opening a public issue. Public disclosure before a fix is available can put users at risk.
+
+<Card title="Contact the Security Team" icon="envelope">
+  Email all security-related reports to: **security@archestra.ai**
+
+  Include a clear description of the vulnerability, steps to reproduce it, and your assessment of the potential impact. The team will acknowledge your report and work with you on a coordinated disclosure timeline.
+</Card>
+
+<Warning>
+  Do not disclose vulnerability details publicly — in issues, pull requests, Slack, or social media — until the security team has confirmed a fix is in place and coordinated a release.
+</Warning>
+
+## Bug Bounty Program
+
+Archestra's bug bounty program is currently in development. In the meantime, the team actively appreciates responsible disclosure of security issues and is willing to compensate researchers based on the severity of the vulnerabilities they report.
+
+<CardGroup cols={2}>
+  <Card title="Report a Vulnerability" icon="shield-halved">
+    Email **security@archestra.ai** with full reproduction steps and a severity assessment. The team reviews every report and responds promptly.
+  </Card>
+  <Card title="Compensation" icon="circle-dollar-to-slot">
+    Compensation is assessed case-by-case based on the severity and impact of the disclosed vulnerability. The team will discuss terms directly with the reporter.
+  </Card>
+</CardGroup>
+
+## What Makes a Good Report
+
+A high-quality security report helps the team reproduce and fix the issue as quickly as possible. Include the following where applicable:
+
+<Accordion title="Recommended Report Contents">
+  - **Summary**: A concise description of the vulnerability and its class (e.g. SSRF, XSS, authentication bypass, prompt injection in the platform itself).
+  - **Steps to reproduce**: A minimal, numbered sequence of steps that reliably triggers the issue. Include any relevant environment details (OS, browser, Docker version, etc.).
+  - **Impact assessment**: Your estimate of what an attacker could achieve by exploiting this — data accessed, actions taken, affected users.
+  - **Proof of concept**: A screenshot, screen recording, or code snippet that demonstrates the vulnerability is real and reproducible.
+  - **Suggested fix** (optional): If you have an idea for how to remediate the issue, include it. The team values researcher input on mitigations.
+</Accordion>
+
+## Scope
+
+Vulnerabilities in the following areas are most impactful and most likely to qualify for compensation:
+
+- Authentication and authorisation bypasses in the Archestra platform
+- Data exfiltration or privilege escalation via the LLM Proxy
+- Bypasses of the AI tool guardrails that Archestra is designed to enforce
+- Remote code execution or SSRF in any platform component
+- Injection vulnerabilities (SQL, command, prompt) in the platform itself
+
+<Note>
+  Theoretical or highly speculative vulnerabilities without a clear reproduction path may not qualify for the bounty programme. Practical, demonstrated impact is the key criterion.
+</Note>
+
+## Coordinated Disclosure Timeline
+
+After you report a vulnerability, the general process is:
+
+<Steps>
+  <Step title="Acknowledgement">
+    The security team acknowledges receipt of your report, typically within a few business days.
+  </Step>
+  <Step title="Assessment">
+    The team reproduces the issue, assesses severity, and determines the fix approach. They will keep you updated on progress.
+  </Step>
+  <Step title="Fix and Release">
+    A fix is developed, tested, and released. The team coordinates the public disclosure date with you.
+  </Step>
+  <Step title="Credit and Compensation">
+    With your permission, your contribution is acknowledged publicly. Compensation is confirmed and delivered based on severity.
+  </Step>
+</Steps>

@@ -1,0 +1,146 @@
+---
+title: Securing Pydantic AI Agents with Archestra Platform
+sidebarTitle: Pydantic AI
+description: Configure Pydantic AI agents to use Archestra's LLM proxy, blocking prompt injection and enforcing context-aware tool-call guardrails in production.
+---
+
+Pydantic AI is a Python agent framework from the creators of Pydantic that provides a type-safe, production-ready approach to building AI agents with unified LLM provider support, structured outputs, dependency injection, and built-in tool execution. While it excels at developer ergonomics and type safety, it does not enforce runtime controls to guard against data leakage, untrusted context influence, or malicious tool calls. Pairing it with Archestra adds that missing layer — Archestra intercepts dangerous tool invocations and ensures that only trusted context is allowed to influence model behaviour.
+
+## The Vulnerability
+
+In this guide, the example agent demonstrates a real [Lethal Trifecta](https://www.archestra.ai/docs/platform-lethal-trifecta) attack path:
+
+1. The agent has access to external data via a `get_github_issue` tool.
+2. It processes a GitHub issue ([archestra-ai/archestra#669](https://github.com/archestra-ai/archestra/issues/669)) that contains hidden markdown with a prompt injection payload.
+3. The agent also has a `send_email` tool — meaning untrusted content can direct it to exfiltrate information externally.
+
+<Note>
+  The `send_email` tool in the example only prints to the console — no real emails are sent. This makes it safe to run and observe the vulnerability in a controlled way.
+</Note>
+
+## Setup
+
+<Steps>
+  <Step title="Get Your LLM Provider API Key">
+    This example uses OpenAI. Archestra supports multiple providers — see [Supported LLM Providers](https://www.archestra.ai/docs/platform-supported-llm-providers) for the full list.
+
+    Obtain an API key from one of the following:
+    - [OpenAI platform](https://platform.openai.com/account/api-keys)
+    - Azure OpenAI
+    - Any OpenAI-compatible service (LocalAI, FastChat, Helicone, LiteLLM, OpenRouter, etc.)
+  </Step>
+
+  <Step title="Get a GitHub Personal Access Token">
+    The example fetches a real GitHub issue, so you need a GitHub Personal Access Token. Create one at [github.com/settings/tokens](https://github.com/settings/tokens).
+
+    No special permissions are required — a token with default public repository access is sufficient.
+  </Step>
+
+  <Step title="Run the Agent Without Archestra (Vulnerable)">
+    Clone the examples repository and create an `.env` file with your credentials:
+
+    ```shell
+    git clone git@github.com:archestra-ai/examples.git
+    cd examples/pydantic-ai
+
+    cat > .env << EOF
+    OPENAI_API_KEY="YOUR_OPENAI_API_KEY"
+    GITHUB_TOKEN="YOUR_GITHUB_TOKEN"
+    EOF
+    ```
+
+    Build and run the vulnerable agent:
+
+    ```shell
+    docker build -t pydantic-ai-archestra-example .
+    docker run pydantic-ai-archestra-example
+    ```
+
+    The agent fetches the GitHub issue, reads the hidden prompt injection, and attempts to send an email with sensitive information. This demonstrates the core vulnerability: an agent with access to external data and communication tools can be silently manipulated.
+  </Step>
+
+  <Step title="Run Archestra Platform Locally">
+    Start the Archestra platform container:
+
+    ```shell
+    docker run -p 9000:9000 -p 3000:3000 archestra/platform
+    ```
+
+    This starts:
+    - **Port 9000** — LLM Proxy (your new `base_url`)
+    - **Port 3000** — Archestra Platform UI
+  </Step>
+
+  <Step title="Run the Agent With Archestra (Secure)">
+    Run the same container with the `--secure` flag, which routes LLM calls through Archestra:
+
+    ```shell
+    docker run pydantic-ai-archestra-example --secure
+    ```
+
+    Archestra marks the GitHub API response as untrusted. After the agent reads the issue, any subsequent tool call — such as `send_email` — that could be influenced by the untrusted content is blocked automatically.
+  </Step>
+
+  <Step title="Integrate Archestra in Your Own Pydantic AI Code">
+    To add Archestra to your own agents, configure the `OpenAIProvider` to use Archestra's proxy URL:
+
+    ```python
+    from pydantic_ai import Agent
+    from pydantic_ai.models.openai import OpenAIChatModel
+    from pydantic_ai.providers.openai import OpenAIProvider
+    import os
+
+    agent = Agent(
+        model=OpenAIChatModel(
+            model_name="gpt-4o",
+            provider=OpenAIProvider(
+                base_url="http://localhost:9000/v1/openai",  # Route through Archestra
+                api_key=os.getenv("OPENAI_API_KEY"),
+            ),
+        ),
+        instructions="Be helpful and thorough."
+    )
+    ```
+
+    <Note>
+      If your agent runs inside a Docker container, use `http://host.docker.internal:9000/v1/openai` instead of `localhost`.
+    </Note>
+
+    **Optional: Use a specific profile.** To target a named Archestra profile, include the profile ID in the URL:
+
+    ```python
+    provider=OpenAIProvider(
+        base_url="http://localhost:9000/v1/openai/{profile-id}",
+        api_key=os.getenv("OPENAI_API_KEY"),
+    )
+    ```
+
+    Create and manage profiles at `http://localhost:3000/profiles`.
+  </Step>
+
+  <Step title="Observe Agent Execution in Archestra">
+    Archestra records every proxied request from your agent.
+
+    1. Open `http://localhost:3000` and navigate to **Chat**.
+    2. Click **Details** on the agent's execution entry.
+    3. Review the full conversation flow — including tool calls and how Archestra marked the GitHub API response as untrusted.
+  </Step>
+
+  <Step title="Configure Policies in Archestra">
+    Every tool call is logged on the **Tool** page in the Archestra UI. By default, all tool results are treated as untrusted, and any subsequent tool call is blocked when the context contains untrusted information.
+
+    You can create exceptions with two policy types:
+
+    **Tool Call Policies** — allow specific calls even in an untrusted context. For example, always permit `get_github_issue` to fetch issues from trusted internal repositories.
+
+    **Tool Result Policies** — mark specific results as trusted. For example, flag results from your corporate GitHub org as trusted so subsequent tool calls are not restricted.
+  </Step>
+</Steps>
+
+## How It Works
+
+Archestra evaluates context trustworthiness on every tool result. When a response from an untrusted source (such as a public GitHub issue) enters the conversation, it lowers the context trust score. Any downstream tool call that could be influenced by that content — including `send_email`, external HTTP requests, or writes to external systems — is blocked before execution.
+
+<Tip>
+  To learn more about how trust evaluation and tool guardrails work under the hood, see the [AI Tool Guardrails documentation](/security/tool-guardrails).
+</Tip>

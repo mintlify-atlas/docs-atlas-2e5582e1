@@ -1,0 +1,327 @@
+---
+title: "Agent Triggers: Schedule, Webhook, and Email Invocation"
+sidebarTitle: "Triggers"
+description: "Automate agents with cron schedules, HTTP webhooks following the A2A protocol, or incoming Outlook email aliases with optional replies."
+---
+
+Agent Triggers let you invoke agents automatically without opening the chat UI. Archestra supports three trigger types: **Scheduled Tasks** that run on a cron schedule, **Webhook (A2A)** endpoints for programmatic HTTP invocation, and **Incoming Email** aliases that route Outlook mail to an agent. All trigger types are managed from **Agent Triggers** in the sidebar. Every run, regardless of trigger type, records the full agent conversation for review.
+
+<Accordion title="Schedule — Cron-Based Automated Runs">
+
+Scheduled Tasks run an agent automatically on a repeating schedule. Each run sends a configured prompt to the agent and records the full conversation. The task always runs under the permissions of the user who created it.
+
+**Common use cases:** daily standup preparation (fetching tasks and summarizing progress before a morning meeting), or periodic support triage (processing incoming requests on a defined cadence).
+
+### Creating a Scheduled Task
+
+<Steps>
+  <Step title="Open Scheduled Tasks">
+    Go to **Agent Triggers** → **Scheduled Tasks** and click **New Task**.
+  </Step>
+  <Step title="Choose an agent and prompt">
+    Select the agent to run and write the prompt that will be sent on each execution.
+  </Step>
+  <Step title="Set the schedule">
+    Choose **Hourly**, **Daily**, or **Custom**. Custom accepts a standard 5-field cron expression evaluated in the creator's timezone.
+
+    ```
+    # Cron expression format: minute hour day month weekday
+    */15 * * * *    # every fifteen minutes
+    0 9 1 * *       # 09:00 on the first of each month
+    0 8 * * 1-5     # 08:00 every weekday
+    ```
+  </Step>
+  <Step title="Save the task">
+    Click **Create**. The task begins firing on the next scheduled interval.
+  </Step>
+</Steps>
+
+### Reviewing Runs and Following Up
+
+Every completed run preserves the full agent conversation. Open any run from the task's **History** tab to review the result. Task owners can continue chatting with the agent in the same context to ask follow-up questions, request changes, or dig deeper into the output.
+
+<Note>
+  Users with `scheduledTask:admin` can view other users' run conversations, but only the conversation owner can continue them. To follow up on another user's run, start a new chat from that conversation — it copies the existing messages and runs under your permissions.
+</Note>
+
+### Permissions
+
+The `scheduledTask` resource controls access. Without `scheduledTask:admin`, users only see tasks they created. With `scheduledTask:admin`, users can view and manage all tasks across the organization.
+
+</Accordion>
+
+<Accordion title="Webhook / A2A — HTTP Invocation via the A2A Protocol">
+
+Webhook (A2A) lets external systems invoke an agent by POSTing to a per-agent URL. The endpoint follows the [A2A (Agent-to-Agent) 1.0 protocol](https://a2a-protocol.org/) for interoperability with any A2A-compatible caller.
+
+### Endpoints
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/v2/a2a/{agentId}/.well-known/agent-card.json` | A2A 1.0 AgentCard for capability discovery |
+| `POST` | `/v2/a2a/{agentId}` | JSON-RPC entry point for `SendMessage` and `GetTask` |
+
+The AgentCard advertises the agent's name, description, and a single skill. A2A clients fetch it first to discover capabilities, then send messages to the POST endpoint.
+
+### Authentication
+
+Both endpoints require an Archestra token in the `Authorization` header:
+
+```
+Authorization: Bearer <platform_token>
+```
+
+A personal token from **Settings > Your Account**, a team token from **Settings > Teams**, or the organization token from **Settings > Organization** all work, as long as the token has access to the target agent.
+
+### Sending a Message
+
+JSON-RPC method `SendMessage` runs a message against the agent and returns the response synchronously.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "SendMessage",
+  "params": {
+    "message": {
+      "messageId": "11111111-1111-1111-1111-111111111111",
+      "role": "ROLE_USER",
+      "parts": [{ "text": "Summarize the last 5 PRs in repo X." }]
+    }
+  }
+}
+```
+
+**Field notes:**
+- `messageId` — required, must be unique per message (UUIDs recommended)
+- `role` — `ROLE_USER` for the caller's message
+- `contextId` / `taskId` — omit on the first message; copy from the response for follow-up turns
+
+A successful response returns the agent's reply inside `result.message`:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "message": {
+      "messageId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "role": "ROLE_AGENT",
+      "contextId": "327a5306-c7dc-4e0c-ba2f-107da6c2548b",
+      "parts": [{ "text": "Here is the summary..." }]
+    }
+  }
+}
+```
+
+### Multi-Turn Conversations
+
+To continue a conversation, copy `contextId` from the first response into every subsequent request:
+
+```bash
+# Turn 1 — start conversation
+curl -X POST https://archestra.example.com/v2/a2a/<agentId> \
+  -H "Authorization: Bearer <platform_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "SendMessage",
+    "params": {
+      "message": {
+        "messageId": "11111111-1111-1111-1111-111111111111",
+        "role": "ROLE_USER",
+        "parts": [{ "text": "hi, my name is victor" }]
+      }
+    }
+  }'
+# → result.message.contextId = "327a5306-..."
+
+# Turn 2 — continue with contextId
+curl -X POST https://archestra.example.com/v2/a2a/<agentId> \
+  -H "Authorization: Bearer <platform_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "SendMessage",
+    "params": {
+      "message": {
+        "messageId": "22222222-2222-2222-2222-222222222222",
+        "role": "ROLE_USER",
+        "contextId": "327a5306-c7dc-4e0c-ba2f-107da6c2548b",
+        "parts": [{ "text": "do you know who i am?" }]
+      }
+    }
+  }'
+```
+
+<Note>
+  `contextId` is generated by Archestra on the first message. Callers cannot supply their own. `X-Archestra-Session-Id` and `Mcp-Session-Id` are observability-only headers and do not group conversations.
+</Note>
+
+### Approvals
+
+When a tool call hits a policy requiring human approval, the response contains a `task` instead of a `message`:
+
+```json
+{
+  "result": {
+    "task": {
+      "id": "task-...",
+      "contextId": "ctx-...",
+      "status": { "state": "TASK_STATE_INPUT_REQUIRED" },
+      "metadata": {
+        "approvalRequests": [
+          {
+            "approvalId": "appr-...",
+            "toolName": "send_email",
+            "approved": false,
+            "resolved": false
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+To approve (or reject), send a follow-up `SendMessage` with `taskId`, `contextId`, and decisions in `metadata.taskOps`:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "SendMessage",
+  "params": {
+    "message": {
+      "messageId": "33333333-3333-3333-3333-333333333333",
+      "role": "ROLE_USER",
+      "taskId": "task-...",
+      "contextId": "ctx-...",
+      "parts": [],
+      "metadata": {
+        "taskOps": {
+          "approvalDecisions": [{ "approvalId": "appr-...", "approved": true }]
+        }
+      }
+    }
+  }
+}
+```
+
+### Legacy Pass-Through (v1 Only)
+
+The legacy `POST /v1/a2a/{agentId}` endpoint accepts any non-A2A JSON body. The body is stringified and passed to the agent as the user message — useful for simple event-forwarding integrations:
+
+```json
+{
+  "event": "issue_opened",
+  "title": "Login button broken on Safari",
+  "url": "https://github.com/acme/app/issues/1421"
+}
+```
+
+<Warning>
+  v1 is single-turn — every call starts a fresh conversation. Use `v2` with a `SendMessage` envelope for multi-turn use.
+</Warning>
+
+</Accordion>
+
+<Accordion title="Incoming Email — Outlook-Based Email Invocation">
+
+Incoming Email lets users invoke agents by sending mail to agent-specific aliases. Archestra watches a shared Microsoft 365 mailbox, extracts the target agent from the recipient alias, and turns the email body into the agent's first message. The agent's response can optionally be sent back as a reply.
+
+### How It Works
+
+1. Microsoft Graph sends a webhook notification to Archestra when new mail arrives
+2. Archestra extracts the agent ID from the recipient alias
+3. The email body becomes the agent's input message
+4. The agent executes and generates a response
+5. Optionally, the agent's response is sent back as an email reply in the same thread
+
+### Prerequisites
+
+- Microsoft 365 mailbox (Exchange Online)
+- Azure AD application with `Mail.Read` application permission (and `Mail.Send` if replies are enabled)
+- Publicly accessible webhook URL
+
+### Azure AD Setup
+
+<Steps>
+  <Step title="Create an App Registration">
+    Go to the [Azure Portal](https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) and create a new App Registration.
+  </Step>
+  <Step title="Add application permissions">
+    Under Microsoft Graph, add `Mail.Read` (required) and `Mail.Send` (required for reply emails) as **application** permissions (not delegated).
+  </Step>
+  <Step title="Grant admin consent">
+    Grant admin consent for both permissions in the Azure Portal.
+  </Step>
+  <Step title="Create a client secret">
+    Under **Certificates & secrets**, create a new client secret and copy the value.
+  </Step>
+</Steps>
+
+### Environment Configuration
+
+```bash
+ARCHESTRA_AGENTS_INCOMING_EMAIL_PROVIDER=outlook
+ARCHESTRA_AGENTS_INCOMING_EMAIL_OUTLOOK_TENANT_ID=<tenant-id>
+ARCHESTRA_AGENTS_INCOMING_EMAIL_OUTLOOK_CLIENT_ID=<client-id>
+ARCHESTRA_AGENTS_INCOMING_EMAIL_OUTLOOK_CLIENT_SECRET=<client-secret>
+ARCHESTRA_AGENTS_INCOMING_EMAIL_OUTLOOK_MAILBOX_ADDRESS=agents@yourcompany.com
+```
+
+### Webhook Setup
+
+Archestra needs a public webhook URL for Microsoft Graph notifications.
+
+- **Automatic:** Set `ARCHESTRA_AGENTS_INCOMING_EMAIL_OUTLOOK_WEBHOOK_URL` and Archestra creates the subscription on startup.
+- **Manual:** Open **Agent Triggers → Email** and run the setup wizard.
+
+<Note>
+  Microsoft Graph subscriptions expire after 3 days. Archestra automatically renews them before expiration. You can also renew or replace them manually from the Email trigger page.
+</Note>
+
+### Email Address Format
+
+Each enabled agent gets an alias following this pattern:
+
+```
+<mailbox-local>+agent-<agentId>@<domain>
+```
+
+For example, if your mailbox is `agents@company.com` and your agent ID is `abc12345-6789-...`, the alias is:
+
+```
+agents+agent-abc123456789...@company.com
+```
+
+Copy the exact alias for any enabled agent from **Agent Triggers → Email**.
+
+### Security Modes
+
+Incoming email is disabled by default for all agents. When enabled, you must choose a security mode:
+
+| Mode | Description |
+| --- | --- |
+| **Private** | Only registered Archestra users with team-based access to the agent can invoke it. The sender's email must match an existing user who belongs to at least one team assigned to the agent. |
+| **Internal** | Only emails from a specified domain are accepted (exact match — subdomains are not included). |
+| **Public** | Any email address can invoke the agent. Use with caution. |
+
+### Conversation History and Thread Context
+
+When processing emails that are replies in a thread, Archestra automatically fetches the conversation history and provides it to the agent, allowing it to understand the full context of back-and-forth exchanges.
+
+### Attachment Limits
+
+| Limit | Value |
+| --- | --- |
+| Max attachments per email | 20 |
+| Max size per file | 10 MB |
+| Max total attachment size | 25 MB |
+
+Image attachments are included inline in the agent's context. Non-image attachments are noted but not processed as inline content. Files exceeding limits are silently skipped.
+
+</Accordion>

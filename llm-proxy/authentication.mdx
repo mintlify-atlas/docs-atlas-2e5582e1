@@ -1,0 +1,318 @@
+---
+title: "LLM Proxy Authentication Methods and Key Scoping"
+sidebarTitle: "Authentication"
+description: "Configure direct provider keys, virtual API keys, OAuth client credentials, user OAuth, and JWKS identity providers for the Archestra LLM Proxy."
+---
+
+The LLM Proxy accepts several authentication methods so you can match the right credential type to each caller. Direct provider keys are the simplest starting point; virtual API keys keep real credentials off clients; OAuth client credentials are ideal for backend services and bots; user OAuth tokens let custom apps act on behalf of an individual Archestra user; and JWKS integration lets enterprise IdP-issued JWTs authenticate without any Archestra-managed credential.
+
+| Method | Best for | Model Router | Notes |
+|--------|----------|:------------:|-------|
+| Direct provider key | Simple provider-specific proxy calls | No | Sends the raw provider key with each request. |
+| Virtual API key | Provider-specific LLM clients, generic Model Router clients, and individual developers | Yes | Works as a provider key replacement on provider-specific proxy routes, or as the `apiKey` for Model Router clients. |
+| LLM OAuth client access token | Backend services, production apps, and external bots | Yes | Uses OAuth client credentials to issue short-lived bearer tokens. |
+| User OAuth access token | Custom apps acting for an individual user | Yes | Uses the authorization code flow with consent and the `llm:proxy` scope. |
+| JWKS | Enterprise IdP JWT callers | Provider routes | Resolves a user from an external IdP JWT. |
+
+## Direct Provider API Key
+
+The simplest method is to pass your raw provider API key in the standard authorization header. The proxy forwards it directly to the upstream provider without storing or transforming it.
+
+```bash
+# OpenAI example
+curl -X POST "https://archestra.example.com/v1/openai/{proxyId}/chat/completions" \
+  -H "Authorization: Bearer sk-your-openai-key" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "Hello"}]}'
+```
+
+<Warning>
+  Direct provider keys are sent with every request from your client application. For production environments or shared services, virtual API keys or OAuth client credentials are strongly preferred — they keep real provider keys inside Archestra and off client machines.
+</Warning>
+
+## Virtual API Keys
+
+Virtual API keys are platform-managed bearer tokens that map to one or more provider API keys stored securely in Archestra. Clients only ever see the virtual token, and the real provider credentials never leave the platform.
+
+<CardGroup cols={2}>
+  <Card title="Key Isolation" icon="key">
+    Provider keys stay in Archestra. Clients only see the virtual token, so rotating or revoking a provider key doesn't require touching client configuration.
+  </Card>
+  <Card title="Revocable & Expirable" icon="clock">
+    Delete a virtual key without rotating the underlying provider key. Optionally set an expiration date for time-limited access.
+  </Card>
+  <Card title="Per-Key Base URL" icon="link">
+    Map each provider key with a custom base URL, supporting proxies, self-hosted endpoints, or regional overrides.
+  </Card>
+  <Card title="Multi-Provider Mapping" icon="diagram-project">
+    One virtual key can map keys for multiple providers, making it suitable as a single credential for Model Router clients.
+  </Card>
+</CardGroup>
+
+### Creating Virtual Keys
+
+<Steps>
+  <Step title="Open Virtual Keys">
+    Go to **LLM Proxies > Credentials > Virtual Keys**.
+  </Step>
+  <Step title="Create a Virtual Key">
+    Click **Create** and give the key a name. Optionally set an expiration date.
+  </Step>
+  <Step title="Map Provider API Keys">
+    Add at least one provider API key mapping. You can map one key per provider; add multiple providers to use this key with the Model Router.
+  </Step>
+  <Step title="Copy the Token">
+    Copy the generated token immediately — it is shown only once.
+  </Step>
+</Steps>
+
+### Using Virtual Keys
+
+Use the virtual key token anywhere you would use a direct provider key:
+
+```bash
+curl -X POST "https://archestra.example.com/v1/openai/{proxyId}/chat/completions" \
+  -H "Authorization: Bearer arch_abc123def456..." \
+  -H "Content-Type: application/json" \
+  -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "Hello"}]}'
+```
+
+The proxy resolves the virtual key to the mapped provider key and base URL, then forwards the request. For provider-specific routes, the mapped key for that route's provider is used. For Model Router routes, provider routing follows the `provider:model` prefix in the request.
+
+### Model Router Virtual Keys
+
+Model Router routes (`/v1/model-router/*`) require a virtual key with at least one provider key mapping — direct provider API keys are rejected on these routes. The `/models` endpoint returns models only for mapped providers, and `/responses` or `/chat/completions` can only route to those providers.
+
+```bash
+curl -X POST "https://archestra.example.com/v1/model-router/{proxyId}/responses" \
+  -H "Authorization: Bearer arch_abc123def456..." \
+  -H "Content-Type: application/json" \
+  -d '{"model": "anthropic:claude-haiku-4-5-20251001", "input": "Hello"}'
+```
+
+## LLM OAuth Clients
+
+LLM OAuth clients are registered confidential clients that authenticate to the LLM Proxy using OAuth client credentials. This is the recommended pattern for backend services, automation jobs, production applications, and external bots that can perform a token exchange before calling the proxy. The client receives a `client_id` and a one-time `client_secret`, exchanges them for a fixed 1-hour access token, and uses that token as the proxy bearer token.
+
+<Note>
+  Virtual keys are still the recommended path for generic LLM clients that cannot perform an OAuth token exchange. Use LLM OAuth clients when you control the service code and can request a token before each proxy call.
+</Note>
+
+### Setting Up an OAuth Client
+
+<Steps>
+  <Step title="Create the Client">
+    Go to **LLM Proxies > Credentials > OAuth Clients** and click **Create**. Give the client a descriptive name.
+  </Step>
+  <Step title="Configure Access">
+    Select the LLM proxies the client is allowed to access, then map the provider API keys it can use.
+  </Step>
+  <Step title="Save Credentials">
+    Copy the generated `client_id` and `client_secret`. The secret is shown only once — store it securely.
+  </Step>
+</Steps>
+
+You can edit an OAuth client later to update its name, allowed LLM proxies, or provider key mappings. Use the **Rotate Secret** action when the existing secret needs to be replaced.
+
+### Getting an Access Token
+
+Exchange your client credentials for a short-lived access token before calling the proxy:
+
+```bash
+curl -X POST "https://archestra.example.com/api/auth/oauth2/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials" \
+  -d "client_id=$CLIENT_ID" \
+  -d "client_secret=$CLIENT_SECRET" \
+  -d "scope=llm:proxy"
+```
+
+The token is valid for 1 hour. Implement a refresh cycle in your service to request a new token before expiry.
+
+### Calling the Proxy with an OAuth Token
+
+<CodeGroup>
+  ```bash Provider-Specific Route
+  curl -X POST "https://archestra.example.com/v1/openai/{proxyId}/chat/completions" \
+    -H "Authorization: Bearer $ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "Hello"}]}'
+  ```
+
+  ```bash Model Router
+  curl -X POST "https://archestra.example.com/v1/model-router/{proxyId}/responses" \
+    -H "Authorization: Bearer $ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"model": "openai:gpt-5.4", "input": "Hello"}'
+  ```
+</CodeGroup>
+
+For provider-specific routes, the OAuth client must have a provider key mapping that matches the route's provider. For Model Router routes, the client must have a mapping for the provider prefix in the requested model ID.
+
+<Tip>
+  See the [Model Router Client Credentials example](https://github.com/archestra-ai/examples/tree/main/model-router-client-credentials) for a complete runnable service-app implementation.
+</Tip>
+
+### Complete Client Credentials Flow
+
+The full token exchange and proxy call sequence looks like this:
+
+```bash
+# Step 1 — Discover OAuth server metadata (optional, for dynamic clients)
+curl "https://archestra.example.com/.well-known/oauth-authorization-server"
+
+# Step 2 — Exchange credentials for an access token
+ACCESS_TOKEN=$(curl -s -X POST "https://archestra.example.com/api/auth/oauth2/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials&client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET&scope=llm:proxy" \
+  | jq -r .access_token)
+
+# Step 3 — Call the Model Router
+curl -X POST "https://archestra.example.com/v1/model-router/{proxyId}/chat/completions" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "openai:gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Hello"}]
+  }'
+```
+
+## User OAuth Apps
+
+Custom applications can authenticate using the OAuth authorization code flow with PKCE when they act on behalf of an individual Archestra user. The user is redirected to Archestra to approve a consent screen, and the application receives an access token with the `llm:proxy` scope. Provider keys are resolved from the signed-in user's accessible Model Provider keys — personal keys, org-wide keys, and team keys for teams the user belongs to.
+
+<Note>
+  User OAuth tokens do not use the **LLM Proxies > Credentials > OAuth Clients** page. That page creates confidential clients for client credentials flow. User OAuth apps are public authorization-code clients registered dynamically.
+</Note>
+
+### Authorization Code Flow with PKCE
+
+<Steps>
+  <Step title="Register a Public Client">
+    Call `POST /api/auth/oauth2/register` to dynamically register a public OAuth client with your redirect URI.
+  </Step>
+  <Step title="Redirect the User">
+    Send the user to `/api/auth/oauth2/authorize` with `scope=llm:proxy`, a PKCE challenge, and your redirect URI:
+
+    ```text
+    response_type=code
+    client_id=<registered client id>
+    redirect_uri=http://localhost:5174/oauth/callback
+    scope=llm:proxy offline_access
+    code_challenge=<PKCE challenge>
+    code_challenge_method=S256
+    state=<random state>
+    ```
+  </Step>
+  <Step title="Exchange the Code">
+    After the user approves the consent screen, exchange the authorization code for tokens at `/api/auth/oauth2/token`:
+
+    ```text
+    grant_type=authorization_code
+    client_id=<registered client id>
+    redirect_uri=http://localhost:5174/oauth/callback
+    code=<authorization code>
+    code_verifier=<PKCE verifier>
+    ```
+  </Step>
+  <Step title="Call the Model Router">
+    Use the access token as the bearer token on proxy requests:
+
+    ```bash
+    curl -X POST "https://archestra.example.com/v1/model-router/{proxyId}/chat/completions" \
+      -H "Authorization: Bearer $ACCESS_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "model": "openai:gpt-4o-mini",
+        "messages": [{"role": "user", "content": "Hello"}]
+      }'
+    ```
+  </Step>
+</Steps>
+
+The user OAuth token lifetime is controlled by **Settings > Organization > Auth > OAuth token lifetime**. This setting applies to newly issued user OAuth tokens for MCP and custom application authorization-code flows, but does not affect the fixed 1-hour lifetime for LLM OAuth client credentials tokens.
+
+<Tip>
+  See the [Model Router User OAuth example](https://github.com/archestra-ai/examples/tree/main/model-router-user-oauth) for a complete runnable web application using PKCE.
+</Tip>
+
+## JWKS (External Identity Provider)
+
+Link an Identity Provider to the LLM Proxy so clients can authenticate with JWTs issued by your existing enterprise IdP. Archestra validates the JWT signature via the IdP's JWKS endpoint and resolves the LLM provider API key from the matched Archestra user's configured keys.
+
+### How JWKS Auth Works
+
+<Steps>
+  <Step title="Client Sends JWT">
+    The client sends `Authorization: Bearer <jwt>` to the LLM Proxy.
+  </Step>
+  <Step title="JWT Validated">
+    Archestra validates the JWT signature against the linked IdP's JWKS endpoint.
+  </Step>
+  <Step title="User Resolved">
+    The JWT `email` claim is matched to an Archestra user account.
+  </Step>
+  <Step title="Provider Key Resolved">
+    The provider API key is resolved from that user's (or org's) configured LLM API keys.
+  </Step>
+  <Step title="Request Forwarded">
+    The request is forwarded to the upstream LLM provider with the resolved key.
+  </Step>
+</Steps>
+
+### JWKS Setup
+
+1. Go to **Settings > Identity Providers** and create an OIDC provider with your IdP's issuer URL, client ID, and client secret.
+2. Open the LLM Proxy profile and select the identity provider in the **Identity Provider** dropdown.
+
+```bash
+# Get a JWT from your IdP (Keycloak direct grant example)
+JWT=$(curl -s -X POST "https://keycloak.example.com/realms/myrealm/protocol/openid-connect/token" \
+  -d "grant_type=password&client_id=my-client&client_secret=secret&username=user&password=pass&scope=openid" \
+  | jq -r .access_token)
+
+# Call the LLM Proxy with the IdP JWT
+curl -X POST "https://archestra.example.com/v1/openai/{proxyId}/chat/completions" \
+  -H "Authorization: Bearer $JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "Hello"}]}'
+```
+
+## API Key Scoping
+
+Each LLM API key has a scope that controls who can use it when Archestra resolves a provider key (for example, in JWKS auth, user OAuth, or Archestra Chat):
+
+| Scope | Description |
+|-------|-------------|
+| **Personal** | Only visible to and usable by the user who created it. |
+| **Team** | Available to all members of the selected team. |
+| **Organization** | Available to all members of the organization. Admin-only. |
+
+You can create multiple keys per provider per scope (for example, two personal Anthropic keys with different base URLs). Mark one key as **Primary** to control which is preferred when resolving. If no key is marked primary, the oldest key is used.
+
+When Archestra Chat, JWKS auth, or user OAuth Model Router auth resolves a provider key, it follows this priority order:
+
+1. Personal key
+2. Team key
+3. Organization-wide key
+4. Environment variable default
+
+If multiple keys exist in the same scope for a provider, the primary key is selected first; otherwise the oldest is selected.
+
+## Custom Base URLs
+
+Each LLM API key can have an optional **Base URL** that overrides the environment-variable default. Configure this when creating or editing an API key in **Provider Settings**.
+
+<CardGroup cols={3}>
+  <Card title="Self-Hosted Models" icon="server">
+    Point Ollama or vLLM to a non-default host or port without changing global environment variables.
+  </Card>
+  <Card title="OpenAI-Compatible Proxies" icon="arrows-turn-to-dots">
+    Route specific keys through a third-party OpenAI-compatible gateway or internal proxy.
+  </Card>
+  <Card title="Regional Endpoints" icon="globe">
+    Use region-specific provider endpoints for data residency or latency requirements.
+  </Card>
+</CardGroup>
+
+When a virtual key or OAuth client access token is resolved, the mapped provider key's base URL is used automatically.

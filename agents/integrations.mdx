@@ -1,0 +1,290 @@
+---
+title: "Agent Integrations: Skills, Slack, and Microsoft Teams"
+sidebarTitle: "Integrations"
+description: "Extend agents with reusable SKILL.md instruction sets, connect to Slack channels and Teams, and share skills to AI coding tools via marketplace links."
+---
+
+Archestra agents can be extended and distributed in three ways: through **Agent Skills** (reusable instruction sets that any agent can activate as a slash command), through **Slack** (routing channel mentions to agents), and through **Microsoft Teams** (connecting agents to channels and DMs via an Azure Bot). All three integrations are configured from **Agent Triggers** and the **Agents** page.
+
+## Agent Skills
+
+Agent Skills are reusable `SKILL.md` instruction sets. Instead of building a separate agent for every task, you write a skill — a self-contained block of instructions with optional tool hints — and any agent in the organization can activate it on demand using a `/slash-command`.
+
+Skills are created either from scratch or by converting an existing agent (see [Convert to Skill](/agents/overview#convert-to-skill)). Each skill has:
+
+- A **slug** derived from the skill name (e.g. `support-helper`) used as the slash command
+- A **description** that activating agents use to decide when to run the skill
+- An optional `allowed-tools` list specifying which tools the activating agent should enable
+- An optional `templated: true` flag so the skill body is re-rendered with the invoking user's context at runtime
+
+<Tip>
+  Use the **Generate** button when creating a skill to draft a description from the agent's prompt, tools, and example prompts via a single LLM call.
+</Tip>
+
+### Slash Commands
+
+Users invoke skills in chat by typing the skill's slug prefixed with `/`. For example, a skill named `support-helper` is available as `/support-helper` in any conversation where the active agent has the skill in scope.
+
+### Skills Marketplace — Sharing with AI Coding Tools
+
+Archestra skills can be installed into Claude Code, Codex CLI, Copilot CLI, or Cursor IDE through each tool's native plugin marketplace. A signed share link points the client at an Archestra-hosted git repository that serves all four marketplaces in parallel:
+
+| Client | Marketplace file |
+| --- | --- |
+| Claude Code | `.claude-plugin/marketplace.json` |
+| Codex / Copilot CLI | `.agents/plugins/marketplace.json` |
+| Cursor | `.cursor-plugin/marketplace.json` |
+
+Every shared skill is bundled into a single plugin (e.g. `archestra-acme-corp-skills`), so users install one thing rather than one plugin per skill. The underlying `SKILL.md` files are identical across all four clients.
+
+#### Creating and Managing the Marketplace Link
+
+Navigate to `/connection` alongside the MCP Gateway and LLM Proxy flows. Select a client (or "Any client") and expand **Install shared skills** to generate a snapshot link covering all current org skills.
+
+<Note>
+  Creating, refreshing, and revoking the marketplace link requires the `skill:admin` permission. Members can install a link that has been shared with them.
+</Note>
+
+The marketplace link is a **snapshot** — adding, editing, or deleting skills after creation does not update the materialized repo. The step shows a "covers N of M skills" indicator when the link has drifted from the current skill set. Click **Refresh link** to issue a new token with the up-to-date skill list (the previous link is revoked at the same time).
+
+<Warning>
+  The clone URL is only returned at creation time. After a page reload the URL is no longer visible — refresh the link to reveal a new URL. Revoke links when sharing ends, and prefer short TTLs (the step defaults to 30 days).
+</Warning>
+
+#### Installing Skills
+
+The same clone URL works for all four clients; only the install command differs:
+
+<Tabs>
+  <Tab title="Claude Code">
+    ```bash
+    claude plugin marketplace add <clone-url>
+    /plugin marketplace browse <marketplace-name>
+    ```
+  </Tab>
+  <Tab title="Codex">
+    ```bash
+    codex plugin marketplace add <clone-url>
+    /plugins  # then select "Install Plugin"
+    ```
+  </Tab>
+  <Tab title="Copilot CLI">
+    ```bash
+    copilot plugin marketplace add <clone-url>
+    copilot plugin marketplace browse <marketplace-name>
+    ```
+  </Tab>
+  <Tab title="Cursor">
+    ```bash
+    /add-plugin <clone-url>
+    ```
+  </Tab>
+</Tabs>
+
+#### Updates and Revocation
+
+When a skill's content changes in Archestra, a new commit is appended to the materialized repo's history with a deterministic SHA. Users who run `git pull` (or the equivalent `plugin marketplace update` command) fast-forward to the new revision. Adding or removing skills from a link's snapshot still requires creating a new link.
+
+Revoking a marketplace link deletes the underlying repository and causes future clone or pull requests to return `404`. Existing local clones keep working until the user attempts a pull. Every clone is audit-logged with the share-link ID and skill IDs.
+
+---
+
+## Slack Integration
+
+Archestra connects to Slack channels so that users can mention the bot to invoke agents directly in their workspace. Each channel gets a default agent assigned to it; all mentions in that channel are routed to that agent, and responses appear in-thread.
+
+### Prerequisites
+
+- Slack workspace with admin permissions to install apps
+- Archestra deployment with external webhook access (webhook mode) or outbound internet access (socket mode)
+
+### Connection Modes
+
+| | Socket Mode (default) | Webhook Mode |
+| --- | --- | --- |
+| **How it works** | Archestra opens an outbound WebSocket to Slack | Slack sends events to your public webhook URLs |
+| **Requires public URL** | No | Yes |
+| **Best for** | Local development, firewalled environments | Production deployments with stable URLs |
+| **Credentials needed** | Bot Token + App-Level Token + App ID | Bot Token + Signing Secret + App ID |
+
+### Setup
+
+<Steps>
+  <Step title="Open the Slack setup wizard">
+    Navigate to **Agent Triggers → Slack → Setup Slack**.
+  </Step>
+  <Step title="Create a Slack app">
+    Follow the wizard to create a new Slack app in your workspace. The wizard generates the app manifest and walks you through pasting it into the Slack API portal.
+  </Step>
+  <Step title="Choose a connection mode">
+    Select **Socket Mode** (default, no public URL needed) or **Webhook Mode** (requires a publicly accessible URL).
+  </Step>
+  <Step title="Install and configure credentials">
+    Install the app to your workspace and paste the required credentials (Bot Token, App ID, and either the App-Level Token for socket mode or the Signing Secret for webhook mode) into the wizard. All credentials are saved automatically.
+  </Step>
+  <Step title="Invite the bot to channels">
+    In Slack, type `/invite @BotName` in each channel where you want the bot to be available.
+  </Step>
+  <Step title="Assign a default agent">
+    Mention the bot in a channel for the first time to trigger agent selection, or configure the default agent from **Agent Triggers → Slack**.
+  </Step>
+</Steps>
+
+### Usage
+
+#### Selecting an Agent Per Channel
+
+When you first mention the bot in a channel, it responds with a list of available agents to choose from. After selection, all future mentions in that channel go to the selected agent.
+
+```
+@BotName what's the status of service X?
+```
+
+Use `/archestra-select-agent` to change the default agent for a channel at any time.
+
+#### Slash Commands
+
+| Command | Description |
+| --- | --- |
+| `/archestra-select-agent` | Change which agent handles this channel by default |
+| `/archestra-status` | Show the currently set default agent for the channel |
+| `/archestra-help` | Show available commands |
+
+#### Routing to a Different Agent for One Message
+
+Use the `AgentName >` syntax to temporarily route a single message to a different agent without changing the channel default:
+
+```
+@BotName Sales > what's our Q4 pipeline?
+```
+
+Agent names are matched case-insensitively; spaces are optional. If the agent name is not found, the message falls back to the default agent with a notice.
+
+#### Direct Messages
+
+DMs with the bot behave like a channel — each user can choose which agent handles their DMs. On the first message, the bot shows an agent selection card. Use `/archestra-select-agent` to change it later.
+
+### Attachment Limits
+
+| Limit | Value |
+| --- | --- |
+| Max attachments per message | 20 |
+| Max size per file | 10 MB |
+| Max total per message | 25 MB |
+
+### Autoprovisioning Slack Users
+
+When a user interacts with the bot but has not signed up in Archestra yet, they are automatically provisioned with the **Member** role and no teams assigned. The user receives a unique invitation link via Slack DM to complete sign-up. Until they do, they cannot log in to the Archestra web app. Admins can view and manage autoprovisioned users at **Settings → Members**.
+
+---
+
+## Microsoft Teams Integration
+
+Archestra connects to Microsoft Teams channels via an Azure Bot. When users mention the bot in a channel, the message is routed to the configured agent and the response appears directly in Teams.
+
+### Prerequisites
+
+- Azure subscription with permissions to create Azure Bot resources
+- Teams tenant where you can install custom apps
+- Archestra deployment with external webhook access
+
+### Setup
+
+<Steps>
+  <Step title="Open the Teams setup wizard">
+    Navigate to **Agent Triggers → MS Teams → Setup MS Teams**.
+  </Step>
+  <Step title="Create an Azure Bot">
+    Follow the wizard to create a new Azure Bot resource in your Azure subscription. The wizard generates all required configuration values.
+  </Step>
+  <Step title="Configure the Teams app manifest">
+    The wizard generates the Teams app manifest. Download it and upload it to your Teams Admin Center or use **Developer Portal** to sideload the app.
+  </Step>
+  <Step title="Save credentials">
+    Paste the Azure Bot's App ID and App Password (client secret) into the wizard. All credentials are saved automatically.
+  </Step>
+  <Step title="Install the app to your workspace">
+    In Teams Admin Center, approve the custom app for your organization, or sideload it directly to a team.
+  </Step>
+  <Step title="Select a default agent per channel">
+    Mention the bot in a channel to trigger agent selection, or manage default agents from **Agent Triggers → MS Teams**.
+  </Step>
+</Steps>
+
+### Usage
+
+#### First Message and Agent Selection
+
+When you first mention the bot in a channel, it responds with an Adaptive Card dropdown to select which agent handles the channel. After selection, the bot processes your message and all future messages in that channel.
+
+```
+@Archestra what's the status of service X?
+```
+
+#### Commands
+
+| Command | Description |
+| --- | --- |
+| `@Archestra /select-agent` | Change which agent handles this channel by default |
+| `@Archestra /status` | Show the currently set default agent for the channel |
+| `@Archestra /help` | Show available commands |
+
+#### Routing to a Different Agent for One Message
+
+Use the `AgentName >` syntax to temporarily route a single message to a different agent:
+
+```
+@Archestra Sales > what's our Q4 pipeline?
+```
+
+Agent names are matched case-insensitively; spaces are optional. If the name is not found, the message falls back to the default agent with a notice.
+
+| Message | Routed To |
+| --- | --- |
+| `@Archestra hello` | Default agent |
+| `@Archestra Sales > check revenue` | Sales agent |
+| `@Archestra Unknown > test` | Default agent (with fallback notice) |
+
+#### Direct Messages
+
+DMs with the bot behave like a channel — each user can choose which agent handles their DMs. On the first message, the bot shows an agent selection card. Use `/select-agent` to change it later.
+
+<Note>
+  Installing the bot for a team does not automatically enable direct messages for all team members. Each user must install the Archestra app personally. When a user opens a chat with the bot for the first time, Teams prompts them to click **Add** to complete the personal installation.
+</Note>
+
+### Conversation History
+
+The bot automatically includes thread history when processing replies, giving the agent full context for follow-up messages. Ensure `ChannelMessage.Read.Group` and `ChatMessage.Read.Chat` RSC permissions are in your app manifest and that the team owner has consented to these permissions.
+
+### Attachment Limits
+
+| Limit | Value |
+| --- | --- |
+| Max attachments per message | 20 |
+| Max size per file | 10 MB |
+| Max total per message | 25 MB |
+
+### Autoprovisioning Teams Users
+
+When a user interacts with the bot but has not signed up in Archestra yet, they are automatically provisioned with the **Member** role and no teams assigned. The user receives a unique invitation link via Teams DM to complete sign-up. Admins can view and manage autoprovisioned users at **Settings → Members**.
+
+### Troubleshooting
+
+<Accordion title="'You don't have access to this app'">
+  Your organization may have disabled custom app uploads. Ask IT to enable sideloading in [Teams Admin Center](https://admin.teams.microsoft.com/).
+</Accordion>
+
+<Accordion title="Bot not responding">
+  - Verify `ARCHESTRA_CHATOPS_MS_TEAMS_ENABLED=true`
+  - Check that the webhook URL is accessible externally
+  - Verify App ID and Password are correct
+</Accordion>
+
+<Accordion title="'Could not verify your identity'">
+  Ensure `TeamMember.Read.Group` and `ChatMember.Read.Chat` RSC permissions are in your manifest. Reinstall the app after updating the manifest.
+</Accordion>
+
+<Accordion title="No thread history">
+  Ensure `ChannelMessage.Read.Group` and `ChatMessage.Read.Chat` RSC permissions are in your manifest. The team owner must consent to the permissions when adding the app. Reinstall the app after updating the manifest.
+</Accordion>

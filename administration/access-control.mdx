@@ -1,0 +1,338 @@
+---
+title: "Role-Based Access Control in Archestra Platform"
+sidebarTitle: "Access Control"
+description: "Manage user permissions with predefined and custom RBAC roles, team-based resource scoping, service accounts, and API key management."
+---
+
+Archestra uses a role-based access control (RBAC) system to manage user permissions across every resource in the platform. Permissions follow a `resource:action` format — for example, `agent:create` allows creating agents, `mcpGateway:update` allows modifying MCP gateway configuration, and `llmProxy:read` allows viewing LLM proxies. This model gives platform administrators precise control over what each user can see and do without granting blanket elevated access.
+
+## Predefined Roles
+
+The following roles are built into Archestra and cannot be modified or deleted.
+
+<CardGroup cols={3}>
+  <Card title="Admin" icon="crown">
+    Full access to all resources including user management, roles, identity providers, and platform settings. The admin role has **all permissions** on every resource.
+  </Card>
+  <Card title="Editor" icon="pen-to-square">
+    Full access to core resources — agents, MCP gateways, LLM proxies, knowledge bases, and organization settings — but cannot manage users, roles, or identity providers.
+  </Card>
+  <Card title="Member" icon="user">
+    Can create and manage their own agents, tools, and chat sessions, with read-only access to most platform-wide resources.
+  </Card>
+</CardGroup>
+
+### Editor Permissions
+
+<Accordion title="View full Editor permission matrix">
+
+| Resource | Actions |
+|---|---|
+| Agents | `read`, `create`, `update`, `delete`, `team-admin` |
+| Skills | `read`, `create`, `update`, `delete`, `team-admin`, `execute` |
+| Agent Triggers | `read`, `create`, `update`, `delete` |
+| Scheduled Tasks | `read`, `create`, `update`, `delete` |
+| LLM Proxies | `read`, `create`, `update`, `delete`, `team-admin` |
+| LLM Provider API Keys | `read`, `create`, `update`, `delete` |
+| LLM Virtual Keys | `read`, `create`, `update`, `delete` |
+| LLM OAuth Clients | `read`, `create`, `update`, `delete` |
+| LLM Models | `read`, `update` |
+| LLM Limits | `read`, `create`, `update`, `delete` |
+| Optimization Rules | `read`, `create`, `update`, `delete` |
+| LLM Costs | `read` |
+| MCP Gateways | `read`, `create`, `update`, `delete`, `team-admin` |
+| Tools & Policies | `read`, `create`, `update`, `delete` |
+| MCP Registry | `read`, `create`, `update`, `delete`, `team-admin` |
+| MCP Server Installations | `read`, `create`, `update`, `delete` |
+| Environments | `admin` |
+| Knowledge Files | `read`, `create`, `update`, `delete` |
+| Knowledge Sources | `read`, `create`, `update`, `delete`, `query` |
+| Chats | `read`, `create`, `update`, `delete` |
+| Logs | `read` |
+| API Keys | `read`, `create`, `delete` |
+| Users | `read` |
+| Roles | `read` |
+| Teams | `read` |
+| Identity Providers | `read` |
+| Organization Settings | `read`, `update` |
+
+</Accordion>
+
+### Member Permissions
+
+<Accordion title="View full Member permission matrix">
+
+| Resource | Actions |
+|---|---|
+| Agents | `read`, `create`, `update`, `delete` |
+| Skills | `read`, `create`, `update`, `delete`, `execute` |
+| Scheduled Tasks | `read`, `create`, `update`, `delete` |
+| LLM Proxies | `read`, `create`, `update`, `delete` |
+| LLM Provider API Keys | `read` |
+| LLM Virtual Keys | `read` |
+| LLM Models | `read` |
+| MCP Gateways | `read`, `create`, `update`, `delete` |
+| Tools & Policies | `read` |
+| MCP Registry | `read` |
+| MCP Server Installations | `read`, `create`, `delete` |
+| Knowledge Files | `read` |
+| Knowledge Sources | `read`, `query` |
+| Chats | `read`, `create`, `update`, `delete` |
+| API Keys | `read`, `create`, `delete` |
+| Teams | `read` |
+
+</Accordion>
+
+## Custom Roles
+
+Users with the `ac:create` permission can create custom roles by selecting specific permission combinations. Custom roles enable fine-grained access control tailored to your organization's needs. You can only grant permissions that you already possess — this prevents privilege escalation.
+
+<Note>
+Use clear, descriptive names for custom roles that indicate their purpose, such as `Agent-Manager`, `Read-Only-Analyst`, or `Tool-Developer`.
+</Note>
+
+### Available Permissions
+
+<Accordion title="Access Control">
+
+| Permission | Description |
+|---|---|
+| `ac:read` | View custom roles and their permissions |
+| `ac:create` | Create new custom roles |
+| `ac:update` | Modify custom role permissions |
+| `ac:delete` | Delete custom roles |
+
+</Accordion>
+
+<Accordion title="Agents & Skills">
+
+| Permission | Description |
+|---|---|
+| `agent:read` | View and list agents |
+| `agent:create` | Create new agents |
+| `agent:update` | Modify agent configuration and settings |
+| `agent:delete` | Delete agents |
+| `agent:team-admin` | Manage team assignments for agents |
+| `agent:admin` | Full administrative control over all agents, bypassing team restrictions |
+| `skill:read` | View and use agent skills within your scope |
+| `skill:create` | Create new agent skills |
+| `skill:update` | Modify agent skills and their team assignments |
+| `skill:delete` | Delete agent skills |
+| `skill:team-admin` | Manage team assignments for agent skills |
+| `skill:admin` | Full administrative control over all agent skills |
+| `skill:execute` | Execute skill scripts |
+| `agentTrigger:read` | View agent trigger configurations |
+| `agentTrigger:create` | Set up new agent triggers |
+| `agentTrigger:update` | Modify agent trigger configurations |
+| `agentTrigger:delete` | Remove agent triggers |
+| `scheduledTask:read` | View scheduled tasks and their run history |
+| `scheduledTask:create` | Create new scheduled tasks and trigger runs |
+| `scheduledTask:update` | Modify scheduled task configuration |
+| `scheduledTask:delete` | Delete scheduled tasks |
+| `scheduledTask:admin` | View and manage all scheduled tasks, not just your own |
+
+</Accordion>
+
+<Accordion title="LLM Proxy">
+
+| Permission | Description |
+|---|---|
+| `llmProxy:read` | View and list LLM proxies |
+| `llmProxy:create` | Create new LLM proxies |
+| `llmProxy:update` | Modify LLM proxy configuration |
+| `llmProxy:delete` | Delete LLM proxies |
+| `llmProxy:team-admin` | Manage team assignments for LLM proxies |
+| `llmProxy:admin` | Full administrative control over all LLM proxies |
+| `llmProviderApiKey:read` | View LLM provider API keys |
+| `llmProviderApiKey:create` | Add new LLM provider API keys |
+| `llmProviderApiKey:update` | Modify LLM provider API key configuration and visibility |
+| `llmProviderApiKey:delete` | Remove LLM provider API keys |
+| `llmProviderApiKey:admin` | Manage all LLM provider API keys, including org-wide keys |
+| `llmVirtualKey:read` | View LLM virtual keys |
+| `llmVirtualKey:create` | Create LLM virtual keys |
+| `llmVirtualKey:update` | Modify LLM virtual keys and their visibility |
+| `llmVirtualKey:delete` | Delete LLM virtual keys |
+| `llmVirtualKey:admin` | Manage all LLM virtual keys and view every scope |
+| `llmModel:read` | View synced LLM models and capabilities |
+| `llmModel:update` | Modify LLM model pricing and modality settings |
+| `llmLimit:read` | View token usage limits |
+| `llmLimit:create` | Create new usage limits |
+| `llmLimit:update` | Modify existing usage limits |
+| `llmLimit:delete` | Remove usage limits |
+| `llmCost:read` | View LLM usage cost statistics and analytics |
+| `optimizationRule:read` | View optimization rules |
+| `optimizationRule:create` | Create new optimization rules |
+| `optimizationRule:update` | Modify optimization rules |
+| `optimizationRule:delete` | Remove optimization rules |
+
+</Accordion>
+
+<Accordion title="MCP Gateways & Registry">
+
+| Permission | Description |
+|---|---|
+| `mcpGateway:read` | View and list MCP gateways |
+| `mcpGateway:create` | Create new MCP gateways |
+| `mcpGateway:update` | Modify MCP gateway configuration |
+| `mcpGateway:delete` | Delete MCP gateways |
+| `mcpGateway:team-admin` | Manage team assignments for MCP gateways |
+| `mcpGateway:admin` | Full administrative control over all MCP gateways |
+| `mcpRegistry:read` | Browse the MCP server registry |
+| `mcpRegistry:create` | Add servers to the MCP registry |
+| `mcpRegistry:update` | Modify MCP registry entries |
+| `mcpRegistry:delete` | Remove servers from the MCP registry |
+| `mcpRegistry:team-admin` | Manage team assignments for MCP registry entries |
+| `mcpServerInstallation:read` | View installed MCP servers and their status |
+| `mcpServerInstallation:create` | Install MCP servers from the registry |
+| `mcpServerInstallation:update` | Modify installed MCP server configuration |
+| `mcpServerInstallation:delete` | Uninstall MCP servers |
+| `mcpServerInstallation:admin` | Approve or manage all MCP server installations |
+| `toolPolicy:read` | View tools, tool invocation policies, and trusted data policies |
+| `toolPolicy:create` | Register tools and create security policies |
+| `toolPolicy:update` | Modify tools, tool configuration, and security policies |
+| `toolPolicy:delete` | Remove tools and security policies |
+
+</Accordion>
+
+<Accordion title="Knowledge Base">
+
+| Permission | Description |
+|---|---|
+| `knowledgeFile:read` | View uploaded Knowledge Files |
+| `knowledgeFile:create` | Upload Knowledge Files |
+| `knowledgeFile:update` | Modify Knowledge File visibility and agent access |
+| `knowledgeFile:delete` | Delete Knowledge Files |
+| `knowledgeFile:admin` | View all Knowledge Files, bypassing visibility restrictions |
+| `knowledgeSource:read` | View Knowledge Bases and Connectors |
+| `knowledgeSource:create` | Create Knowledge Bases and Connectors |
+| `knowledgeSource:update` | Modify Knowledge Bases and Connectors |
+| `knowledgeSource:delete` | Delete Knowledge Bases and Connectors |
+| `knowledgeSource:query` | Query knowledge sources for information retrieval |
+| `knowledgeSource:admin` | View all Knowledge Bases and Connectors, bypassing visibility restrictions |
+
+</Accordion>
+
+<Accordion title="Users, Teams & Organization">
+
+| Permission | Description |
+|---|---|
+| `member:read` | View organization members and their roles |
+| `member:create` | Add new members to the organization |
+| `member:update` | Change member roles and settings |
+| `member:delete` | Remove members from the organization |
+| `team:read` | View teams and their members |
+| `team:create` | Create new teams |
+| `team:update` | Modify team settings |
+| `team:delete` | Delete teams |
+| `team:admin` | Manage team membership (add/remove members) |
+| `invitation:create` | Send invitations to new users |
+| `invitation:cancel` | Cancel pending invitations |
+| `organizationSettings:read` | View organization settings |
+| `organizationSettings:update` | Customize organization appearance, authentication, etc. |
+| `identityProvider:read` | View identity provider configurations (SSO) |
+| `identityProvider:create` | Set up new identity providers |
+| `identityProvider:update` | Modify identity provider settings |
+| `identityProvider:delete` | Remove identity providers |
+| `auditLog:read` | View the organization-wide audit log of administrative actions |
+
+</Accordion>
+
+<Accordion title="API Keys, Secrets & Chat">
+
+| Permission | Description |
+|---|---|
+| `apiKey:read` | View API keys |
+| `apiKey:create` | Create API keys |
+| `apiKey:delete` | Delete API keys |
+| `serviceAccount:read` | View service accounts |
+| `serviceAccount:create` | Create service accounts |
+| `serviceAccount:update` | Modify service accounts |
+| `serviceAccount:delete` | Delete service accounts |
+| `secret:read` | View secrets manager configuration |
+| `secret:update` | Modify secrets manager settings and test connectivity |
+| `chat:read` | View and access chat conversations |
+| `chat:create` | Start new chat conversations |
+| `chat:update` | Edit chat messages and conversation settings |
+| `chat:delete` | Delete chat conversations |
+| `chatAgentPicker:enable` | Show agent picker in chat |
+| `chatExpandToolCalls:enable` | Allow expanding tool call details in chat |
+| `chatProviderSettings:enable` | Show model and API key selectors in chat |
+| `log:read` | View LLM proxy and MCP tool call logs |
+
+</Accordion>
+
+## Scoped Resources
+
+Some resources use a two-step authorization model. RBAC grants a base action (`read`, `create`, `update`, `delete`), and then runtime scope rules further restrict which records a user can actually see or modify.
+
+The most common scopes are:
+
+- **`personal`** — owned by one user
+- **`team`** — shared with one or more teams
+- **`org`** — shared across the entire organization
+
+### Agents, MCP Gateways, and LLM Proxies
+
+These three resources share the same scope model:
+
+| Scope | Who can access |
+|---|---|
+| `personal` | The author only |
+| `team` | Requires `<resource>:team-admin` and membership in at least one assigned team |
+| `org` | Requires `<resource>:admin` |
+
+<Warning>
+`agent:delete` alone does **not** allow deleting every agent — it only applies to agents within the user's permitted scope. Use `agent:admin` to bypass scope restrictions entirely.
+</Warning>
+
+### Visibility-Scoped Credentials
+
+`llmProviderApiKey` and `llmVirtualKey` support `personal`, `team`, and `org` scope but use different elevated permissions. Team records require membership in the selected team; organization-wide records require the resource-specific admin permission such as `llmProviderApiKey:admin`. These resources do **not** use `:team-admin`.
+
+### Chat Access
+
+Chat access requires both `chat:read` **and** `agent:read` because chat is agent-backed — a user must be able to access at least one agent or profile context to start or use chat. The `chatAgentPicker:enable`, `chatProviderSettings:enable`, and `chatExpandToolCalls:enable` permissions are UI toggles only and do not grant access to provider credentials or model catalogs on their own.
+
+## Team-Based Access Control
+
+Teams allow you to share agents, MCP gateways, LLM proxies, and MCP servers with specific groups of users. Team-based access works alongside RBAC — roles control *what actions* a user can perform, and teams control *which records* they can see.
+
+<Steps>
+  <Step title="Create teams for different groups">
+    Navigate to **Settings > Teams** and create teams that reflect your organizational structure, such as "Data Scientists", "Developers", or "Security".
+  </Step>
+  <Step title="Assign resources to teams">
+    When creating or editing an agent, MCP gateway, LLM proxy, or MCP server, set its visibility to the relevant team.
+  </Step>
+  <Step title="Add users to teams">
+    Add users to teams based on their role and responsibilities. Users will automatically see the resources assigned to their teams.
+  </Step>
+</Steps>
+
+### Default Team
+
+New users are automatically added to the **Default Team** when they accept an invitation. This ensures all users have immediate access to any Archestra resources assigned to this team.
+
+### Team Access Rules
+
+<CardGroup cols={2}>
+  <Card title="MCP Gateways, LLM Proxies & Agents" icon="shield-halved">
+    Users can only see resources assigned to teams they belong to. Exceptions: users with the `:admin` permission see all records; resources with no team assignment are visible to all users.
+  </Card>
+  <Card title="MCP Servers" icon="server">
+    Users can only access MCP servers assigned to their teams. Exceptions: users with `mcpServerInstallation:admin` see all servers; servers with no team assignment are accessible to all users.
+  </Card>
+</CardGroup>
+
+Team-based access also extends to related artifacts such as interaction logs, policies, and tool assignments — members can only view these for agents and MCP servers they have access to.
+
+## Best Practices
+
+<Tip>
+Start new users with the **Member** role and add specific permissions as needed. This principle of least privilege reduces the blast radius of accidental or malicious actions.
+</Tip>
+
+- **Principle of Least Privilege** — Grant only the minimum permissions necessary for a user's role.
+- **Team-based organization** — Combine roles with teams for fine-grained resource access rather than granting broad org-wide permissions.
+- **Regular review** — Periodically review custom roles and team memberships to ensure they align with current needs and security requirements.
+- **Clear naming** — Use descriptive names for custom roles that indicate their purpose, such as `Agent-Manager`, `Read-Only-Analyst`, or `Tool-Developer`.

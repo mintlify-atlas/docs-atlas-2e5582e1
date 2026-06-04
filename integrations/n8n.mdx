@@ -1,0 +1,126 @@
+---
+title: Securing n8n Autonomous AI Agents with Archestra Platform
+sidebarTitle: n8n
+description: Connect n8n to Archestra's LLM Proxy to prevent prompt injection attacks, track workflow costs, and enforce AI tool guardrails in autonomous agents.
+---
+
+n8n is an open-source, visual workflow automation platform commonly used to build autonomous AI agents that connect databases, APIs, and external services. When those agents process untrusted content — such as webhook payloads, emails, or third-party data — they become vulnerable to prompt injection attacks that can exfiltrate private data or trigger unintended actions. Archestra sits between n8n and your LLM provider, monitoring every request and blocking dangerous tool calls the moment untrusted content enters an agent's context.
+
+## The Security Risk
+
+Autonomous n8n agents face what Archestra calls the **Lethal Trifecta**: a dangerous combination of three conditions that make prompt injection attacks feasible and consequential.
+
+<CardGroup cols={3}>
+  <Card title="Access to Private Data" icon="database">
+    n8n workflows connect to internal databases, APIs, and systems containing sensitive information.
+  </Card>
+  <Card title="Untrusted Content" icon="triangle-exclamation">
+    Agents process user inputs, emails, webhooks, and data from external, uncontrolled sources.
+  </Card>
+  <Card title="External Communication" icon="arrow-up-right-from-square">
+    n8n nodes can send HTTP requests, write to databases, and interact with third-party services.
+  </Card>
+</CardGroup>
+
+## Architecture
+
+With Archestra in place, every LLM request from your n8n agent is validated before it reaches the model. When untrusted data enters the conversation, Archestra automatically restricts dangerous follow-on tool calls while letting safe ones proceed.
+
+```
+n8n AI Agent ──► Archestra Proxy ──► OpenAI API
+     │                                    │
+     └── MCP Client ──► GitHub API ◄──────┘
+```
+
+## Setup
+
+<Steps>
+  <Step title="Run n8n and Archestra Together">
+    A ready-made Docker Compose file launches both services locally.
+
+    ```bash
+    git clone https://github.com/archestra-ai/archestra
+    cd platform
+
+    docker-compose -f docker-compose-n8n.yml up
+    ```
+
+    Once running:
+    - **n8n** is available at `http://localhost:5678`
+    - **Archestra Platform** is available at `http://localhost:3000`
+  </Step>
+
+  <Step title="Build Your n8n Agent">
+    Create a simple autonomous agent using the GitHub MCP server and an OpenAI model.
+
+    1. Add an **AI Agent** node.
+    2. Add a **Chat Trigger** node.
+    3. Add a **Model** node and select **OpenAI gpt-4o**.
+    4. Add an **MCP Client** node to the **tools** leaf and connect it to the official remote GitHub MCP server following the [GitHub MCP server instructions](https://github.com/github/github-mcp-server).
+  </Step>
+
+  <Step title="Point n8n at the Archestra Proxy">
+    Route n8n's OpenAI calls through Archestra by updating your credentials.
+
+    1. Open **Credentials** at `http://127.0.0.1:5678/home/credentials/`.
+    2. Select your **OpenAI credentials**.
+    3. Set **Base URL** to:
+
+    ```text
+    http://platform-archestra-1:9000/v1/openai
+    ```
+
+    `platform-archestra-1` is the in-Docker DNS name for the Archestra container started by Docker Compose. This replaces the default `https://api.openai.com/v1`.
+
+    <Note>
+      To target a specific Archestra profile, append the profile ID to the URL: `http://platform-archestra-1:9000/v1/openai/{profile-id}`. Create and manage profiles in the Archestra UI at `http://localhost:3000/profiles`.
+    </Note>
+
+    4. Open the agent in n8n and send **"hi"** in the chat. This primes Archestra to discover the available tools.
+  </Step>
+
+  <Step title="Verify Prompt Injection Is Blocked">
+    Use the [test issue](https://github.com/archestra-ai/archestra/issues/647) created to demonstrate a real prompt injection. Send this prompt in the n8n chat:
+
+    ```text
+    resolve https://github.com/archestra-ai/archestra/issues/647
+    ```
+
+    Without Archestra, the agent follows the malicious embedded instructions and exfiltrates data from a private repository into a public one. With Archestra in place, the agent completes the first safe tool call but is blocked from executing any subsequent tool calls once untrusted content enters the context.
+
+    Archestra's [AI tool guardrails](/security/tool-guardrails) reduce context trustworthiness in real time and prevent the dangerous follow-on actions.
+  </Step>
+
+  <Step title="Enable Execution Tracking (Optional)">
+    n8n assigns a unique execution ID to every workflow run. Pass it to Archestra via a custom header so you can correlate LLM costs with specific agent executions.
+
+    1. Open **Credentials** at `http://127.0.0.1:5678/home/credentials/`.
+    2. Select the same **OpenAI credentials** used by your Chat Model node.
+    3. Add a custom header `X-Archestra-Meta` with this expression:
+
+    ```text
+    n8n-support-agent/{{ $execution.id }}/
+    ```
+
+    The `X-Archestra-Meta` header format is `<agent-id>/<execution-id>/<session-id>`. The `{{ $execution.id }}` expression resolves to the current workflow execution ID at runtime.
+  </Step>
+</Steps>
+
+## Cost Tracking and Observability
+
+Once execution tracking is configured, Archestra exports Prometheus metrics you can visualise in the built-in GenAI Observability Grafana dashboard.
+
+<CardGroup cols={2}>
+  <Card title="llm_cost_total" icon="circle-dollar-to-slot">
+    Tracks LLM inference spending per agent, giving you a breakdown of model costs across all workflows.
+  </Card>
+  <Card title="agent_executions_total" icon="chart-bar">
+    Counts unique workflow executions grouped by `agent_id`, enabling per-execution cost attribution.
+  </Card>
+</CardGroup>
+
+Combined, these two metrics let you calculate the full operating cost of each n8n agent — inference spend plus per-execution fees — all displayed in the **Cost** and **External Agent Executions** sections of the [GenAI Observability dashboard](https://github.com/archestra-ai/archestra/blob/main/platform/dev/grafana/dashboards/genai-observability.json).
+
+<Tip>
+  See the [Observability documentation](/administration/observability) for full Prometheus and Grafana setup instructions.
+</Tip>

@@ -1,0 +1,174 @@
+---
+title: "LLM Proxy Usage Costs, Limits, and Optimization"
+sidebarTitle: "Costs & Limits"
+description: "Track LLM spend, enforce budget limits by org, team, or key scope, configure model pricing, and reduce costs with optimization rules and TOON compression."
+---
+
+Archestra tracks LLM usage costs, enforces usage limits, and records savings from model optimization and tool-result compression. These controls work together: pricing defines cost, statistics show what happened, limits stop or shape usage, and optimization reduces spend before a request even reaches a model. All cost features depend on model pricing being configured correctly — without pricing, token counts are still logged but cost calculations remain incomplete.
+
+## Usage Statistics
+
+The statistics view aggregates LLM traffic by time range, team, proxy, and model so you can answer questions like which teams are driving the most spend, which models account for the largest share of cost, or whether optimization rules and TOON compression are reducing spend over time.
+
+<CardGroup cols={2}>
+  <Card title="Spend by Team" icon="users">
+    Break down total cost by team to identify which groups are consuming the most tokens and at what rate.
+  </Card>
+  <Card title="Spend by Model" icon="microchip">
+    See which models account for the largest share of cost to inform model selection decisions.
+  </Card>
+  <Card title="Savings Tracking" icon="piggy-bank">
+    Archestra records both raw spend and savings from optimization rules and TOON compression so you can measure the impact of cost controls.
+  </Card>
+  <Card title="External Dashboards" icon="chart-bar">
+    For long-term monitoring, alerting, and cross-system cost analysis, use Archestra's exported Prometheus metrics and the prebuilt Grafana dashboards.
+  </Card>
+</CardGroup>
+
+<Note>
+  The statistics view depends on model pricing being configured correctly. If a model has no pricing set, usage is still logged but cost calculations will be incomplete. Configure pricing in the provider model settings pages.
+</Note>
+
+## Usage Limits
+
+Usage limits are guardrails for LLM spend. Archestra supports token-cost limits scoped to the organization, team, user, agent, LLM proxy, or virtual API key. Each limit can target one or more specific models, or apply to all models. A limit with no model specified acts as a global budget across every model the entity uses.
+
+Each limit has its own cleanup interval, and limits are evaluated from recorded model usage — meaning pricing configuration directly affects when a token-cost limit is considered reached.
+
+### Scope Reference
+
+| Scope | Use when |
+|-------|----------|
+| **Organization** | You need a shared platform-wide budget that applies to all teams and users. |
+| **Team** | Different groups need separate spend caps to track and control costs independently. |
+| **User** | Individual users need their own budgets, separate from team or org limits. |
+| **Agent or LLM Proxy** | A specific agent profile or proxy needs its own budget regardless of who calls it. |
+| **Virtual API Key** | Spend should be capped per API key, for example to give each external application its own budget. |
+
+### Default User Limits
+
+Admins can configure a default user limit in LLM settings. It applies to every current and future user automatically. A custom per-user limit overrides the default for that individual user — use this when one user needs a different budget from the platform default.
+
+### Limit Cleanup Intervals
+
+Each limit resets on its own schedule:
+
+- **Rolling intervals** — reset after the elapsed time window (for example, every 30 days from when the limit was last reset)
+- **Calendar intervals** — reset at the next day, week, or month boundary; weekly intervals can start on Sunday or Monday
+
+<Note>
+  Changing a limit's cleanup interval resets its current usage immediately. Default user limits use their own cleanup interval configured in LLM settings.
+</Note>
+
+## Model Pricing
+
+Model pricing is configured on the provider model settings pages and is the foundation for every cost feature in Archestra:
+
+<CardGroup cols={2}>
+  <Card title="Statistics" icon="chart-line">
+    Pricing converts token counts into dollar spend for the statistics and aggregate cost views.
+  </Card>
+  <Card title="Token-Cost Limits" icon="gauge">
+    Limits use pricing to decide when a budget is reached and traffic should be stopped or throttled.
+  </Card>
+  <Card title="Optimization Reports" icon="arrow-trend-down">
+    Savings from optimization rules are calculated in dollars using the configured model price differential.
+  </Card>
+  <Card title="TOON Compression Savings" icon="compress">
+    Compression savings are reported in dollars using the price of the model that received the compressed input.
+  </Card>
+</CardGroup>
+
+<Tip>
+  If you use custom or self-hosted models (vLLM, Ollama), add pricing explicitly so cost reporting and token-cost limits work as expected.
+</Tip>
+
+## Optimization Rules
+
+Optimization rules reduce cost before a request is sent to an LLM. Archestra evaluates request context against the configured rules and can switch the request to a lower-cost model when conditions match. Rules are applied in priority order, making them useful for layered policies where a specific exception should win over a general fallback.
+
+### Common Use Cases
+
+<CardGroup cols={3}>
+  <Card title="Short Prompts" icon="text-size">
+    Route short prompts to a cheaper, smaller model when the full power of a flagship model is not needed.
+  </Card>
+  <Card title="No Tool Use" icon="wrench">
+    Use a less expensive model for requests that do not require tool calling or structured outputs.
+  </Card>
+  <Card title="Time-Based Policies" icon="clock">
+    Apply time-based routing rules for predictable traffic patterns, such as off-hours cost reduction.
+  </Card>
+</CardGroup>
+
+Savings from optimization rules are recorded alongside each interaction and roll up into the statistics view, so you can see how much each rule is saving over time.
+
+## TOON Compression
+
+TOON (Token-Oriented Object Notation) compression reduces the token footprint of structured tool results before they are passed to the model. Archestra keeps the original JSON intact for application logic, then converts the model-facing representation to TOON when compression is enabled and when the converted form is actually smaller.
+
+TOON is a compact, lossless representation of the JSON data model. Its main advantage is with uniform arrays of objects, where repeated field names are declared once and row values are emitted in a table-like form — similar to a columnar format for LLM input.
+
+### When TOON Is Most Effective
+
+TOON compression is especially valuable for tool outputs that contain repeated structure:
+
+<CardGroup cols={2}>
+  <Card title="Database Query Results" icon="database">
+    Rows from SQL queries or ORM results with many repeated column names.
+  </Card>
+  <Card title="API Resource Lists" icon="list">
+    Lists of API resources with consistent schemas, such as cloud resource listings.
+  </Card>
+  <Card title="Analytics Rows" icon="table">
+    Analytics or report data with repeated field names across many records.
+  </Card>
+  <Card title="Search Results" icon="magnifying-glass">
+    Search results where each result object shares a common set of fields.
+  </Card>
+</CardGroup>
+
+### When Compression Is Skipped
+
+Archestra skips TOON compression when:
+
+- TOON is disabled at the org or team level
+- A response has no tool results
+- The TOON representation would not actually save tokens (i.e., the TOON output is larger than the original JSON)
+
+Archestra records before/after token counts and savings when compression is applied. These savings appear in individual interaction logs and in the aggregate cost reporting view.
+
+### Enabling TOON Compression
+
+TOON can be enabled at two levels:
+
+| Level | Effect |
+|-------|--------|
+| **Organization** | Applies compression to all LLM traffic across the entire organization. |
+| **Team** | Applies compression only to traffic from the specified team, useful when only certain workflows benefit from compression. |
+
+<Tip>
+  See the [toon-format/toon](https://github.com/toon-format/toon) project for the format specification and benchmarks showing token savings by data type.
+</Tip>
+
+## Dynamic Model Routing for Cost Savings
+
+Optimization rules and TOON compression work together with usage limits to give you layered cost control:
+
+<Steps>
+  <Step title="Configure Model Pricing">
+    Set input and output token prices for each model in the provider model settings pages. This activates all cost-based features.
+  </Step>
+  <Step title="Set Usage Limits">
+    Create limits at the appropriate scope — org-wide for a hard platform cap, team limits for per-group budgets, or virtual key limits for per-application spend controls.
+  </Step>
+  <Step title="Create Optimization Rules">
+    Add rules that route to cheaper models based on request characteristics — prompt length, presence of tool calls, time of day, or model tier.
+  </Step>
+  <Step title="Enable TOON Compression">
+    Turn on TOON compression at the org or team level to automatically reduce token counts for tool-heavy workflows without any change to application code.
+  </Step>
+  <Step title="Monitor in Statistics">
+    Review the statistics view to see total spend, savings from optimization, savings from TOON compression, and which teams or models are consuming the most budget.
+  </Step>
+</Steps>

@@ -1,0 +1,138 @@
+{
+  "projectType": "saas",
+  "projectName": "Archestra",
+  "projectDescription": "Enterprise AI platform that provides a centralized MCP registry, LLM gateway, Kubernetes-native MCP orchestrator, AI agent builder, security guardrails, and observability — enabling organizations to govern and scale AI adoption across all teams.",
+  "theme": "luma",
+  "primaryColor": "#7c7c7c",
+  "lightColor": "#050505",
+  "darkColor": "#cacaca",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "deployment"
+            ]
+          },
+          {
+            "group": "MCP",
+            "pages": [
+              "mcp/overview",
+              "mcp/private-registry",
+              "mcp/gateway",
+              "mcp/orchestrator",
+              "mcp/authentication"
+            ]
+          },
+          {
+            "group": "Agents",
+            "pages": [
+              "agents/overview",
+              "agents/knowledge-bases",
+              "agents/triggers",
+              "agents/chat",
+              "agents/integrations"
+            ]
+          },
+          {
+            "group": "LLM Proxy",
+            "pages": [
+              "llm-proxy/overview",
+              "llm-proxy/authentication",
+              "llm-proxy/supported-providers",
+              "llm-proxy/costs-and-limits"
+            ]
+          },
+          {
+            "group": "Security",
+            "pages": [
+              "security/overview",
+              "security/tool-guardrails",
+              "security/dual-llm",
+              "security/secrets-management"
+            ]
+          },
+          {
+            "group": "Administration",
+            "pages": [
+              "administration/access-control",
+              "administration/sso",
+              "administration/observability",
+              "administration/environment-variables"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/n8n",
+              "integrations/vercel-ai",
+              "integrations/mastra",
+              "integrations/openwebui",
+              "integrations/pydantic-ai"
+            ]
+          },
+          {
+            "group": "Contributing",
+            "pages": [
+              "contributing/developer-quickstart",
+              "contributing/guidelines",
+              "contributing/security"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api-reference/overview"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Private MCP Registry with governance — curated catalog of approved MCP servers shared org-wide",
+    "Kubernetes-native MCP Orchestrator — runs MCP servers as isolated pods with lifecycle and credential management",
+    "MCP Gateway — single governed endpoint for all MCP tools consumed by Claude, Cursor, Open WebUI, custom agents",
+    "LLM Proxy — drop-in security proxy between AI apps and LLM providers (OpenAI, Anthropic, Gemini, etc.)",
+    "AI Tool Guardrails — deterministic context-aware tool call and tool result policies that survive prompt injection",
+    "Dual LLM security model — quarantines untrusted tool output in an isolated sub-agent to prevent prompt injection leakage",
+    "Built-in RAG Knowledge Base — chunking, embedding, hybrid search, and reranking without an external vector database",
+    "Cost monitoring and limits — per-org/team/user/agent spending caps and dynamic model optimization (up to 96% cost reduction)",
+    "Prometheus metrics and OpenTelemetry tracing — per-agent, per-team token usage, tool call spans, and Grafana dashboards",
+    "SSO and access control — OIDC/SAML identity providers, role mapping, team sync, and SCIM provisioning",
+    "Terraform and Crossplane providers — infrastructure-as-code management of MCP registry and agents",
+    "ChatOps integrations — invoke agents from Slack, Microsoft Teams, or incoming email"
+  ],
+  "publicApiSurface": [
+    "POST /v1/mcp/{gatewayId} — MCP Gateway endpoint (StreamableHTTP or SSE)",
+    "GET|POST /v1/chat/completions — OpenAI-compatible LLM Proxy chat completions",
+    "GET /api/agents — list agents",
+    "POST /api/agents — create agent",
+    "GET /api/mcp/registry — list MCP registry entries",
+    "POST /api/mcp/registry — add MCP registry entry",
+    "GET /api/mcp/installations — list MCP server installations",
+    "GET /api/llm-proxies — list LLM proxies",
+    "POST /api/llm-proxies — create LLM proxy",
+    "GET /api/knowledge-bases — list Knowledge Bases",
+    "POST /api/knowledge-bases — create Knowledge Base",
+    "GET /metrics — Prometheus metrics endpoint (port 9050)",
+    "Terraform provider: archestra_mcp_registry_catalog_item",
+    "Terraform provider: archestra_mcp_server_installation",
+    "Crossplane provider: mcp.archestra.crossplane.io/v1alpha1 RegistryCatalogItem",
+    "Crossplane provider: mcp.archestra.crossplane.io/v1alpha1 ServerInstallation",
+    "Built-in MCP tool: search_tools",
+    "Built-in MCP tool: run_tool",
+    "Built-in MCP tool: query_knowledge_sources",
+    "X-Archestra-Agent-Id custom header for LLM Proxy agent attribution"
+  ]
+}

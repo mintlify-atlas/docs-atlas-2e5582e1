@@ -1,0 +1,154 @@
+---
+title: "Private MCP Registry: Your Approved Server Catalog"
+sidebarTitle: Private Registry
+description: "Manage approved MCP servers, configure remote and self-hosted entries, and control installation credentials, visibility, and network egress policies."
+---
+
+The Private MCP Registry is the catalog of MCP servers approved for your organization. It defines what servers exist, how they should be configured, who can see them, and what credentials are required when someone installs them. Think of a registry entry as a reusable template and an installation as the actual connection created from that template for a specific person or team. Agents and MCP Gateways use installed connections when they call tools.
+
+## Registry Entry → Installation Lifecycle
+
+A server moves through a predictable lifecycle from catalog entry to active tool use.
+
+<Steps>
+  <Step title="Add a Registry Entry">
+    An admin creates a registry entry in **MCPs > Registry**. The entry defines the server type (remote or self-hosted), URL or image, authentication configuration, and any fields users must fill in during installation.
+  </Step>
+  <Step title="Install the Entry">
+    A user or team installs the entry and provides any required credentials. Personal installations are owned by one user; team installations are shared with a team.
+  </Step>
+  <Step title="Tool Discovery">
+    Archestra connects to the server, calls `tools/list` (or `resources/list` for resource-only servers), and stores the discovered tools against the installation.
+  </Step>
+  <Step title="Assign to an Agent or Gateway">
+    An admin or user assigns discovered tools to an Agent or MCP Gateway. Assignments can be pinned to a specific installation or use **Resolve at call time**.
+  </Step>
+  <Step title="Tool Execution">
+    When a tool runs, Archestra resolves the correct installation and upstream credential based on the caller identity and the assignment configuration.
+  </Step>
+</Steps>
+
+<Note>
+  This separation lets admins curate a small approved catalog while still allowing each user or team to connect with their own credentials.
+</Note>
+
+## Server Configuration
+
+Registry entries describe either a remote server or a self-hosted server.
+
+<Tabs>
+  <Tab title="Remote Servers">
+    Remote servers run outside Archestra and are reached over HTTP. Use this for provider-hosted MCP servers or internal services already operated by another team.
+
+    A remote registry entry stores:
+    - **Server URL** — the MCP endpoint Archestra calls
+    - **Docs URL** — optional link surfaced in the UI
+    - **Authentication configuration** — the credential model the server expects
+    - **Install-time fields** — values users must provide when they install the entry (for example, an API key or account ID)
+
+    When a remote server exposes resources through `resources/list` instead of `tools/list`, Archestra creates read-resource tools during installation so those resources are accessible through the normal tool assignment flow.
+  </Tab>
+  <Tab title="Self-Hosted Servers">
+    Self-hosted servers run in Kubernetes through the MCP Orchestrator. Use this when Archestra should own the runtime.
+
+    A self-hosted registry entry can define:
+    - **Command and args** — what to run using Archestra's MCP server base image
+    - **Custom Docker image** — your own image when the server is already packaged
+    - **Transport type** — `stdio` (default) or `streamable-http`
+    - **Environment variables and secrets** — static values and install-time fields
+    - **Image pull secrets** — for images stored in a private container registry
+    - **Advanced deployment YAML** — overrides to the generated Kubernetes deployment
+
+    **stdio** is the default transport. Archestra runs the server process and communicates over standard input/output. **streamable-http** runs the server as an HTTP service inside the cluster — use this when the server needs concurrent requests, HTTP headers, or per-request credential injection.
+  </Tab>
+</Tabs>
+
+## Credentials and Authentication
+
+The registry entry defines what credential model an installation uses. The installation stores the actual secret, OAuth token, or enterprise credential configuration.
+
+<Accordion title="No Auth">
+  For internal tools that do not call external APIs. No credential is collected at install time.
+</Accordion>
+
+<Accordion title="Static Credentials">
+  API keys, personal access tokens, or service account tokens set once at install time and used for all requests. The primary credential can be injected as `Authorization`, `Authorization: Bearer`, or a custom header such as `x-api-key`, depending on what the upstream server expects.
+</Accordion>
+
+<Accordion title="OAuth 2.1 (Per-User)">
+  For per-user SaaS access with browser authorization and automatic refresh. Archestra handles endpoint discovery, client registration, Authorization Code + PKCE, token storage, and token injection.
+</Accordion>
+
+<Accordion title="OAuth Client Credentials (Shared)">
+  For shared machine-to-machine access. Archestra stores the `client_id`, `client_secret`, and optional `audience`, then exchanges them for a short-lived bearer token at call time.
+</Accordion>
+
+<Accordion title="Enterprise IdP Token Exchange">
+  Archestra exchanges the caller's enterprise identity for the downstream credential the MCP server needs. Configured on the Identity Provider and the catalog item. Works with JWKS and ID-JAG gateway auth.
+</Accordion>
+
+<Accordion title="Enterprise JWT / JWKS Passthrough">
+  The upstream MCP server validates the caller's IdP JWT itself. Archestra forwards the caller's enterprise JWT to the upstream server as `Authorization: Bearer`.
+</Accordion>
+
+Registry entries can also define **Additional Headers** for non-auth values that should be sent on every downstream request — for example, tenant IDs, API version headers, or feature flags. These are different from gateway header passthrough, which forwards selected headers from the incoming MCP client request.
+
+<Tip>
+  See [MCP Authentication](/mcp/authentication) for the full gateway and upstream credential model, including dynamic resolution order and missing-credential behavior.
+</Tip>
+
+## Installation Scope and Credential Resolution
+
+Installations can be personal (one user) or team-scoped (shared with a team).
+
+When assigning tools to an Agent or MCP Gateway, you can **pin a specific installation** or use **Resolve at call time**. Resolve-at-call-time determines which credential to use dynamically from the caller's identity:
+
+1. The calling user's own personal credential (highest priority)
+2. A credential owned by a team member on the same team
+3. If no credential is found, Archestra returns an error with a direct install link
+
+<Warning>
+  Team and organization bearer tokens do not carry enough user identity for per-user downstream credential resolution. Use personal user tokens when each caller needs their own upstream account.
+</Warning>
+
+## Labels and Visibility
+
+Registry entries can carry **labels** — key-value pairs set under **Labels** in the registry form. Labels organize the catalog and make entries easier to filter and manage.
+
+Installation scope controls who sees and can use an installed connection:
+
+| Scope | Accessible by |
+|---|---|
+| Personal | The owning user only |
+| Team | All members of the team |
+| Org | All organization members (admin-only) |
+
+## Environments and Network Policies
+
+An environment is an organization-level deployment target such as `sandbox`, `staging`, or `production`. Admins manage environments in **Settings > Environments**. Each environment carries a name, an optional Kubernetes namespace, and an optional network egress policy.
+
+An environment can be marked **restricted** — only members with the `environment:deploy-to-restricted` permission can assign catalog entries to a restricted environment.
+
+### Network Egress Policies
+
+Network egress policies are configured on environments. They can disable internet egress, allow all egress, or restrict egress to selected IP/CIDR ranges.
+
+| Cluster Provider | IP/CIDR Rules | Domain Rules |
+|---|---|---|
+| EKS Auto Mode | Kubernetes `NetworkPolicy` | AWS `ApplicationNetworkPolicy` (requires EKS Auto Mode Network Policy Controller) |
+| EKS with AWS VPC CNI | Kubernetes `NetworkPolicy` | Not supported |
+| AKS | Kubernetes `NetworkPolicy` | Cilium `CiliumNetworkPolicy` (requires Cilium CRD) |
+| GKE | Kubernetes `NetworkPolicy` | GKE `FQDNNetworkPolicy` (requires GKE Dataplane V2) |
+| Cilium-enabled clusters | Kubernetes `NetworkPolicy` or Cilium policy | Cilium `CiliumNetworkPolicy` |
+
+<Note>
+  Domain presets and custom domains require a supported FQDN policy provider. Kubernetes `NetworkPolicy` alone only enforces IP/CIDR rules.
+</Note>
+
+Archestra applies network policies in priority order: the environment's network policy, then the organization default network policy, then the built-in unrestricted policy.
+
+## From Registry to Gateway
+
+The registry does not expose tools to clients by itself. After a server is installed, Archestra discovers the tools that the installed connection exposes. Those tools become usable only after they are assigned to an Agent or MCP Gateway.
+
+For external MCP clients, create or edit an [MCP Gateway](/mcp/gateway), assign tools from installed registry entries, then connect the client to the gateway endpoint. For built-in Archestra agents, assign the same tools from the agent's tool configuration.

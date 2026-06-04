@@ -1,0 +1,298 @@
+---
+title: "Environment Variables Reference for Archestra Platform"
+sidebarTitle: "Environment Vars"
+description: "Complete reference for all Archestra environment variables covering application, auth, LLM providers, secrets, MCP orchestrator, and observability."
+---
+
+Archestra is configured entirely through environment variables, making it compatible with Docker, Kubernetes, and any standard secrets management system. For Helm deployments, variables are set via `archestra.env` in your values file, or injected from Kubernetes Secrets using `archestra.envFromSecrets`. The sections below cover every production-relevant variable, organized by functional area.
+
+<Accordion title="Application & API">
+
+These variables configure the core application — database connectivity, URL routing, and platform-wide behavioral defaults.
+
+| Variable | Default | Description |
+|---|---|---|
+| `ARCHESTRA_DATABASE_URL` | Internal PostgreSQL | PostgreSQL connection string. Format: `postgresql://user:password@host:5432/database`. Required for production with an external database. |
+| `ARCHESTRA_API_BASE_URL` | `http://localhost:9000` | Base URL(s) for the Archestra API, shown in UI connection instructions. Supports multiple comma-separated URLs, e.g. `http://archestra.default.svc:9000,https://api.archestra.example.com`. |
+| `ARCHESTRA_FRONTEND_URL` | *(all origins allowed)* | When set, enables CORS origin validation. Only requests from this origin (and any in `ARCHESTRA_AUTH_ADDITIONAL_TRUSTED_ORIGINS`) are allowed. Highly recommended for production. Example: `https://frontend.example.com`. |
+| `ARCHESTRA_TRUST_PROXY` | `false` | Set to `true` when running behind a TLS-terminating proxy (AWS ALB, nginx, Cloudflare) so that OAuth metadata and auth URLs use the external `https://` scheme. Accepts `true`, `false`, or a comma-separated list of trusted proxy IPs/CIDRs. |
+| `ARCHESTRA_AUTH_SECRET` | *(auto-generated)* | Secret key for signing authentication tokens, encrypting secrets in the database, and encrypting JWKS private keys. Must be at least 32 characters. **Do not change after deployment** — rotating invalidates all sessions, encrypted secrets, and 2FA enrollments. |
+| `ARCHESTRA_AUTH_ADMIN_EMAIL` | `admin@localhost.ai` | Email address for the default admin user, created on first startup. |
+| `ARCHESTRA_AUTH_ADMIN_PASSWORD` | `password` | Password for the default admin user. **Change this immediately in production.** |
+| `ARCHESTRA_ANALYTICS` | `enabled` | Controls PostHog analytics for product improvements. Set to `disabled` to opt out. |
+
+**Examples:**
+
+```bash
+# External PostgreSQL
+ARCHESTRA_DATABASE_URL=postgresql://archestra:secret@db.internal:5432/archestra
+
+# Multiple API base URLs (internal K8s + external ingress)
+ARCHESTRA_API_BASE_URL=http://archestra.default.svc:9000,https://api.archestra.example.com
+
+# Production CORS and proxy trust
+ARCHESTRA_FRONTEND_URL=https://archestra.example.com
+ARCHESTRA_TRUST_PROXY=true
+
+# Admin credentials
+ARCHESTRA_AUTH_ADMIN_EMAIL=admin@yourcompany.com
+ARCHESTRA_AUTH_ADMIN_PASSWORD=<your-secure-password>
+
+# Opt out of analytics
+ARCHESTRA_ANALYTICS=disabled
+```
+
+</Accordion>
+
+<Accordion title="Authentication & Security">
+
+These variables control the authentication system — SSO enforcement, invitation management, cookie scoping, and trusted origins.
+
+| Variable | Default | Description |
+|---|---|---|
+| `ARCHESTRA_AUTH_DISABLE_BASIC_AUTH` | `false` | When `true`, hides the username/password login form and requires SSO-only authentication. Configure at least one Identity Provider before enabling. |
+| `ARCHESTRA_AUTH_DISABLE_INVITATIONS` | `false` | When `true`, hides invitation UI and blocks invitation API endpoints. Useful for organizations where user provisioning is handled entirely by SSO auto-provisioning. |
+| `ARCHESTRA_AUTH_COOKIE_DOMAIN` | *(unset)* | Cookie domain for authentication. Set to the root domain of `ARCHESTRA_FRONTEND_URL` — e.g., if frontend is `https://app.example.com`, set to `example.com`. Required when frontend and backend use different subdomains. |
+| `ARCHESTRA_AUTH_ADDITIONAL_TRUSTED_ORIGINS` | *(none)* | Comma-separated list of additional trusted origins for CORS and authentication. Setting this variable (even without `ARCHESTRA_FRONTEND_URL`) enables origin validation. Example: `http://192.168.1.5:3000,https://auth.example.com`. |
+
+**Examples:**
+
+```bash
+# Enforce SSO-only login after configuring an Identity Provider
+ARCHESTRA_AUTH_DISABLE_BASIC_AUTH=true
+
+# Disable manual invitations when using SSO auto-provisioning
+ARCHESTRA_AUTH_DISABLE_INVITATIONS=true
+
+# Cookie domain for subdomain setup
+ARCHESTRA_AUTH_COOKIE_DOMAIN=example.com
+
+# Allow LAN access alongside the primary domain
+ARCHESTRA_AUTH_ADDITIONAL_TRUSTED_ORIGINS=http://192.168.1.5:3000,http://192.168.1.5:9000
+```
+
+</Accordion>
+
+<Accordion title="LLM Providers">
+
+These variables set the default base URL for each LLM provider and enable special authentication modes. Per-key base URLs configured in **Settings > LLM API Keys** take precedence over these defaults.
+
+| Variable | Default | Description |
+|---|---|---|
+| `ARCHESTRA_AI_BASE_URL` | `https://api.openai.com/v1` | Override the OpenAI API base URL. Use to point to an OpenAI-compatible proxy or custom endpoint. |
+| `ARCHESTRA_ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | Override the Anthropic API base URL. |
+| `ARCHESTRA_GEMINI_BASE_URL` | `https://generativelanguage.googleapis.com` | Override the Google Gemini API base URL. Only used when Vertex AI mode is disabled. |
+| `ARCHESTRA_AZURE_OPENAI_BASE_URL` | *(unset)* | Azure AI Foundry deployment endpoint URL. Format: `https://<resource>.openai.azure.com/openai/deployments/<deployment>` or `https://<resource>.services.ai.azure.com/openai/v1` for Foundry v1. Required to enable the Azure AI Foundry provider. |
+| `ARCHESTRA_BEDROCK_IAM_AUTH_ENABLED` | `false` | Set to `true` to use the AWS credential chain (IRSA, instance profiles, environment variables) instead of API keys for AWS Bedrock. |
+| `ARCHESTRA_GEMINI_VERTEX_AI_ENABLED` | `false` | Set to `true` to use Vertex AI instead of the Google AI Studio API. Uses Application Default Credentials. Requires `ARCHESTRA_GEMINI_VERTEX_AI_PROJECT`. |
+| `ARCHESTRA_VLLM_BASE_URL` | *(unset)* | Base URL for your vLLM server. Required to enable vLLM provider support. Example: `http://localhost:8000/v1`. |
+| `ARCHESTRA_OLLAMA_BASE_URL` | `http://localhost:11434/v1` | Base URL for your Ollama server. Ollama is enabled by default on this address. |
+
+**Examples:**
+
+```bash
+# Point OpenAI requests to an internal proxy
+ARCHESTRA_AI_BASE_URL=https://openai-proxy.internal/v1
+
+# Enable Azure OpenAI with Entra ID auth
+ARCHESTRA_AZURE_OPENAI_BASE_URL=https://my-resource.openai.azure.com/openai/deployments/gpt-4o
+ARCHESTRA_AZURE_OPENAI_ENTRA_ID_ENABLED=true
+
+# Enable Bedrock with IAM auth (IRSA on EKS)
+ARCHESTRA_BEDROCK_IAM_AUTH_ENABLED=true
+
+# Enable Vertex AI for Gemini
+ARCHESTRA_GEMINI_VERTEX_AI_ENABLED=true
+ARCHESTRA_GEMINI_VERTEX_AI_PROJECT=my-gcp-project-123
+ARCHESTRA_GEMINI_VERTEX_AI_LOCATION=us-central1
+
+# Self-hosted vLLM
+ARCHESTRA_VLLM_BASE_URL=http://vllm.gpu-nodes.svc:8000/v1
+
+# Ollama on a different host
+ARCHESTRA_OLLAMA_BASE_URL=http://ollama.local:11434/v1
+```
+
+</Accordion>
+
+<Accordion title="Secrets Management">
+
+These variables configure where Archestra stores sensitive data such as LLM API keys and tokens. The default is database storage. HashiCorp Vault is supported as an alternative backend.
+
+| Variable | Default | Description |
+|---|---|---|
+| `ARCHESTRA_SECRETS_MANAGER` | `DB` | Secrets storage backend. Options: `DB` (database), `VAULT` (Vault read/write), `READONLY_VAULT` (read from Vault, write disabled). |
+| `ARCHESTRA_HASHICORP_VAULT_ADDR` | *(unset)* | HashiCorp Vault server address. Required when `ARCHESTRA_SECRETS_MANAGER=VAULT` or `READONLY_VAULT`. Example: `http://vault.vault.svc:8200`. |
+| `ARCHESTRA_HASHICORP_VAULT_AUTH_METHOD` | `TOKEN` | Authentication method used to connect to Vault. Options: `TOKEN`, `K8S` (Kubernetes service account), `AWS` (IAM). |
+
+**Additional Vault Variables**
+
+| Variable | Default | Description |
+|---|---|---|
+| `ARCHESTRA_HASHICORP_VAULT_KV_VERSION` | `2` | Version of Vault's KV secrets engine (`1` or `2`). |
+| `ARCHESTRA_HASHICORP_VAULT_SECRET_PATH` | `secret/data/archestra` (KV v2) | Path prefix for Archestra-managed secrets in Vault. |
+| `ARCHESTRA_HASHICORP_VAULT_SECRET_METADATA_PATH` | *(derived from secret path)* | Override path prefix for KV v2 metadata operations. Only needed when your prefix doesn't follow the `/data/` ↔ `/metadata/` convention. |
+| `ARCHESTRA_DATABASE_URL_VAULT_REF` | *(unset)* | Read the database connection string from Vault. Format: `path:key`, e.g. `secret/data/archestra/database:connection_string`. Only used with `READONLY_VAULT`. |
+
+**Examples:**
+
+```bash
+# Use HashiCorp Vault with Kubernetes auth
+ARCHESTRA_SECRETS_MANAGER=VAULT
+ARCHESTRA_HASHICORP_VAULT_ADDR=http://vault.vault.svc:8200
+ARCHESTRA_HASHICORP_VAULT_AUTH_METHOD=K8S
+
+# Read database URL from Vault in read-only mode
+ARCHESTRA_SECRETS_MANAGER=READONLY_VAULT
+ARCHESTRA_HASHICORP_VAULT_ADDR=http://vault.vault.svc:8200
+ARCHESTRA_HASHICORP_VAULT_AUTH_METHOD=TOKEN
+ARCHESTRA_DATABASE_URL_VAULT_REF=secret/data/archestra/database:connection_string
+```
+
+</Accordion>
+
+<Accordion title="MCP Orchestrator">
+
+These variables configure how Archestra deploys and manages MCP server pods in Kubernetes.
+
+| Variable | Default | Description |
+|---|---|---|
+| `ARCHESTRA_ORCHESTRATOR_K8S_NAMESPACE` | Helm release namespace (or `default`) | Kubernetes namespace where MCP server pods are created. Example: `archestra-mcp`. |
+| `ARCHESTRA_ORCHESTRATOR_MCP_SERVER_BASE_IMAGE` | `europe-west1-docker.pkg.dev/friendly-path-465518-r6/archestra-public/mcp-server-base:0.0.3` | Base Docker image for MCP server containers. Can be overridden per individual MCP server in the registry. |
+| `ARCHESTRA_ORCHESTRATOR_LOAD_KUBECONFIG_FROM_CURRENT_CLUSTER` | `true` | Use in-cluster Kubernetes configuration. Set to `false` when Archestra runs outside the cluster and specify `ARCHESTRA_ORCHESTRATOR_KUBECONFIG` instead. |
+
+**Examples:**
+
+```bash
+# Use a dedicated namespace for MCP pods
+ARCHESTRA_ORCHESTRATOR_K8S_NAMESPACE=archestra-mcp
+
+# Use a private registry mirror for the MCP base image
+ARCHESTRA_ORCHESTRATOR_MCP_SERVER_BASE_IMAGE=registry.internal/archestra/mcp-server-base:0.0.3
+
+# Archestra running outside the target cluster
+ARCHESTRA_ORCHESTRATOR_LOAD_KUBECONFIG_FROM_CURRENT_CLUSTER=false
+ARCHESTRA_ORCHESTRATOR_KUBECONFIG=/etc/archestra/kubeconfig
+```
+
+</Accordion>
+
+<Accordion title="Observability">
+
+These variables configure the Prometheus metrics endpoint and OpenTelemetry tracing export. See [Observability](/administration/observability) for the full metrics reference.
+
+| Variable | Default | Description |
+|---|---|---|
+| `ARCHESTRA_OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4318` | OTLP endpoint for traces and logs. This base URL is used for both `/v1/traces` and `/v1/logs`. |
+| `ARCHESTRA_OTEL_CAPTURE_CONTENT` | `true` | When enabled, captures prompt/completion content and tool call arguments/results as span events. Set to `false` for privacy or to reduce span sizes. |
+| `ARCHESTRA_OTEL_CONTENT_MAX_LENGTH` | `10000` | Maximum characters per captured content event. Content exceeding this limit is truncated with a `...[truncated]` suffix. |
+| `ARCHESTRA_OTEL_VERBOSE_TRACING` | `false` | When `true`, includes infrastructure spans (HTTP routes, outgoing HTTP calls) in addition to GenAI-specific spans. Use for debugging only. |
+| `ARCHESTRA_OTEL_TRACES_SAMPLE_RATE` | `1.0` | Sampling rate for OTEL traces (0–1). Uses `ParentBasedSampler` with `TraceIdRatioBasedSampler`. |
+| `ARCHESTRA_METRICS_PORT` | `9050` | TCP port for the Prometheus metrics server. |
+| `ARCHESTRA_METRICS_SECRET` | `archestra-metrics-secret` | Bearer token for authenticating access to `/metrics`. When set, scrapers must include `Authorization: Bearer <token>`. |
+
+**Authentication variables for OTLP export:**
+
+| Variable | Description |
+|---|---|
+| `ARCHESTRA_OTEL_EXPORTER_OTLP_AUTH_BEARER` | Bearer token for OTLP authentication. Takes precedence over basic auth when both are configured. |
+| `ARCHESTRA_OTEL_EXPORTER_OTLP_AUTH_USERNAME` | Username for OTLP basic authentication. Both username and password must be provided. |
+| `ARCHESTRA_OTEL_EXPORTER_OTLP_AUTH_PASSWORD` | Password for OTLP basic authentication. |
+
+**Examples:**
+
+```bash
+# Send traces to Grafana Cloud
+ARCHESTRA_OTEL_EXPORTER_OTLP_ENDPOINT=https://tempo-prod-04-prod-us-east-0.grafana.net
+ARCHESTRA_OTEL_EXPORTER_OTLP_AUTH_BEARER=glc_eyJ...
+
+# Send traces to an internal OTel Collector
+ARCHESTRA_OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.monitoring.svc:4318
+
+# Disable content capture for privacy compliance
+ARCHESTRA_OTEL_CAPTURE_CONTENT=false
+
+# Secure the metrics endpoint
+ARCHESTRA_METRICS_PORT=9050
+ARCHESTRA_METRICS_SECRET=your-secure-scrape-token
+
+# Sample 10% of traces in high-volume environments
+ARCHESTRA_OTEL_TRACES_SAMPLE_RATE=0.1
+```
+
+</Accordion>
+
+<Accordion title="Knowledge Base">
+
+These variables configure the Knowledge Base feature, which powers document ingestion, embedding, and hybrid search.
+
+| Variable | Default | Description |
+|---|---|---|
+| `ARCHESTRA_KNOWLEDGE_BASE_HYBRID_SEARCH_ENABLED` | `true` | When enabled, RAG queries combine vector similarity with full-text search using Reciprocal Rank Fusion. Set to `false` for vector-only search. |
+| `ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_BLOB_STORAGE_PROVIDER` | `db` | File byte storage provider for uploaded Knowledge Files. Options: `db` (PostgreSQL), `s3` (Amazon S3 or compatible). |
+
+**S3 blob storage variables** (required when `ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_BLOB_STORAGE_PROVIDER=s3`):
+
+| Variable | Default | Description |
+|---|---|---|
+| `ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_S3_BUCKET` | *(required)* | S3 bucket name for uploaded file bytes. |
+| `ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_S3_REGION` | *(required)* | AWS region for the S3 bucket. |
+| `ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_S3_PREFIX` | *(unset)* | Optional object key prefix for all uploaded files. |
+| `ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_S3_ENDPOINT` | *(unset)* | Optional S3-compatible endpoint URL (for MinIO, Cloudflare R2, etc.). |
+| `ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_S3_FORCE_PATH_STYLE` | `false` | Use path-style URLs. Set to `true` for S3-compatible providers that require it. |
+| `ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_S3_AUTH_METHOD` | `irsa` | S3 auth method. `irsa` uses the AWS default credential chain (including IAM Roles for Service Accounts on EKS); `static` uses explicit access key and secret. |
+
+**Examples:**
+
+```bash
+# Disable hybrid search (vector only)
+ARCHESTRA_KNOWLEDGE_BASE_HYBRID_SEARCH_ENABLED=false
+
+# Store files in S3 with IRSA auth (EKS)
+ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_BLOB_STORAGE_PROVIDER=s3
+ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_S3_BUCKET=my-archestra-files
+ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_S3_REGION=us-east-1
+ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_S3_AUTH_METHOD=irsa
+
+# Store files in MinIO
+ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_BLOB_STORAGE_PROVIDER=s3
+ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_S3_BUCKET=archestra-files
+ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_S3_ENDPOINT=http://minio.storage.svc:9000
+ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_S3_FORCE_PATH_STYLE=true
+ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_S3_AUTH_METHOD=static
+ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_S3_ACCESS_KEY_ID=minioadmin
+ARCHESTRA_KNOWLEDGE_BASE_FILE_UPLOAD_S3_SECRET_ACCESS_KEY=minioadmin
+```
+
+</Accordion>
+
+<Accordion title="Enterprise">
+
+These variables enable enterprise licensing and platform-level operational controls.
+
+| Variable | Default | Description |
+|---|---|---|
+| `ARCHESTRA_ENTERPRISE_LICENSE_ACTIVATED` | *(unset)* | Set to `true` to activate the enterprise license. Required as a prerequisite for all other enterprise feature flags. Contact [sales@archestra.ai](mailto:sales@archestra.ai) to obtain a license. |
+| `ARCHESTRA_MAINTENANCE_MODE_MESSAGE` | *(unset)* | When set, displays a full-screen maintenance overlay with this message to all users instead of the normal application interface. Unset to return to normal operation. |
+
+**Additional enterprise feature flags** (all require `ARCHESTRA_ENTERPRISE_LICENSE_ACTIVATED=true`):
+
+| Variable | Description |
+|---|---|
+| `ARCHESTRA_ENTERPRISE_LICENSE_KNOWLEDGE_BASE_ACTIVATED` | Enables advanced access-control on Knowledge Base connectors. Without this flag, connectors are limited to org-wide visibility. |
+| `ARCHESTRA_ENTERPRISE_LICENSE_FULL_WHITE_LABELING` | Enables full white-labeling, removing "Powered by Archestra" attribution. |
+
+**Examples:**
+
+```bash
+# Activate enterprise license
+ARCHESTRA_ENTERPRISE_LICENSE_ACTIVATED=true
+
+# Enable Knowledge Base enterprise features
+ARCHESTRA_ENTERPRISE_LICENSE_KNOWLEDGE_BASE_ACTIVATED=true
+
+# Show maintenance banner during upgrades
+ARCHESTRA_MAINTENANCE_MODE_MESSAGE="Archestra is currently undergoing scheduled maintenance. We'll be back shortly."
+```
+
+</Accordion>

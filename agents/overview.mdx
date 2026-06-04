@@ -1,0 +1,144 @@
+---
+title: "Archestra Agents: Build and Deploy Reusable AI Workers"
+sidebarTitle: "Overview"
+description: "Agents are reusable AI workers with instructions, tools, and knowledge. Invoke them from Chat, Webhooks, schedules, email, Slack, or Teams."
+---
+
+Agents are the core building blocks of Archestra — reusable AI workers that combine a system prompt, tool access, and optional knowledge retrieval into a single, invokable unit. Once configured, the same agent can be called from the chat UI, triggered by an incoming email, fired on a schedule, reached over HTTP, or embedded inside Slack and Microsoft Teams, without rebuilding the workflow each time.
+
+## What an Agent Contains
+
+An agent is composed of several optional capabilities that work together at runtime:
+
+<CardGroup cols={2}>
+  <Card title="System Prompt" icon="file-lines">
+    Defines the agent's behavior, persona, and constraints. Supports Handlebars templating so instructions adapt per-user at runtime.
+  </Card>
+  <Card title="Suggested Prompts" icon="lightbulb">
+    Pre-configured example messages surfaced in the chat UI to help users get started quickly with common tasks.
+  </Card>
+  <Card title="Tools" icon="wrench">
+    One or more MCP tools the agent can call during a run. The full list is exposed via `tools/list`, or selectively with Load Tools When Needed mode.
+  </Card>
+  <Card title="Knowledge Sources" icon="database">
+    One or more Knowledge Bases or connectors that give the agent retrieval access to your internal data without hardcoding sources into the prompt.
+  </Card>
+  <Card title="Delegation Targets" icon="share-nodes">
+    Other agents this agent can delegate subtasks to, with full call-chain observability and inherited tool guardrail trust state.
+  </Card>
+</CardGroup>
+
+## Invocation Paths
+
+The same agent is reachable through multiple entry points, all managed from **Agent Triggers** in the sidebar:
+
+<CardGroup cols={3}>
+  <Card title="Chat UI" icon="message">
+    Interactive, turn-by-turn conversations directly in the Archestra web interface.
+  </Card>
+  <Card title="Webhook / A2A" icon="webhook">
+    HTTP endpoint following the A2A 1.0 protocol for programmatic or agent-to-agent invocation.
+  </Card>
+  <Card title="Scheduled Tasks" icon="clock">
+    Cron-based runs that fire automatically and record the full conversation for review.
+  </Card>
+  <Card title="Incoming Email" icon="envelope">
+    Outlook-based email aliases that route incoming messages to the agent and optionally reply.
+  </Card>
+  <Card title="Slack" icon="slack">
+    Bot integration that routes channel mentions to the agent and replies in-thread.
+  </Card>
+  <Card title="Microsoft Teams" icon="microsoft">
+    Azure Bot integration that handles channel mentions and DMs with agent selection per channel.
+  </Card>
+</CardGroup>
+
+## Load Tools When Needed
+
+By default, an agent exposes every assigned tool through MCP `tools/list`. For large toolsets this can bloat the context sent to the model on every turn.
+
+Enable **Load tools when needed** to keep the initial tool list small. When active, MCP clients see only two built-in tools at first:
+
+- **`search_tools`** — discovers assigned tools by name or description
+- **`run_tool`** — executes any assigned tool by name
+
+The full assigned toolset remains accessible; the model just fetches what it needs rather than receiving everything upfront. Tool call policies still apply: if the model uses `run_tool` to call `send_email`, Archestra evaluates the `send_email` policy with the same arguments and context as a direct call.
+
+<Note>
+  `search_tools` and `run_tool` are enabled implicitly when this mode is on — you do not need to assign them manually.
+</Note>
+
+## Knowledge Sources
+
+When at least one Knowledge Base or connector is assigned, Archestra automatically adds the built-in `query_knowledge_sources` tool to the agent. The model calls it during a run to search across all assigned sources and pull relevant context into its answer.
+
+Knowledge sources are configured separately and reused across multiple agents. See [Knowledge Bases](/agents/knowledge-bases) for the full setup guide.
+
+## Delegation
+
+Agents can delegate subtasks to other agents. Archestra tracks the full call chain for observability across the entire run. Delegated agents inherit the current tool guardrails trust state, so downstream policy enforcement does not reset mid-run.
+
+## Convert to Skill
+
+Any agent can be converted into an [Agent Skill](/agents/integrations#agent-skills) — a reusable `SKILL.md` instruction set that any other agent can activate via a `/slash-command`. Use this when the agent's value is primarily in its instructions and you want them available without requiring users to switch agents.
+
+The **Convert to skill** action opens a confirmation dialog where you:
+
+- set the skill's description (required — used by activating agents to decide when to invoke the skill)
+- choose whether to remove the source agent after conversion
+
+Conversion is intentionally lossy — a skill carries instructions only, with no tools, model, or knowledge of its own:
+
+| Agent field | What happens |
+| --- | --- |
+| System prompt | Becomes the skill body |
+| Scope | Carried over directly |
+| Name | Normalized to a slug (e.g. `Support Helper` → `support-helper`) |
+| Description | Required; prefilled from agent, or generated via LLM |
+| Assigned tools | Carried into the skill's `allowed-tools` frontmatter |
+| Default model | Not carried — no skill equivalent |
+| Knowledge sources | Not carried — no skill equivalent |
+| Suggested prompts | Folded into body or metadata |
+
+<Tip>
+  Use **Generate** in the description field to draft a description from the agent's prompt, tools, and example prompts via a single LLM call.
+</Tip>
+
+If the system prompt uses Handlebars templating, the skill is automatically flagged `templated: true` so its body is re-rendered with the activating user's context at runtime rather than baking one author's values into shared instructions.
+
+## System Prompt Templating
+
+Agent system prompts support [Handlebars](https://handlebarsjs.com/) templating. Templates are rendered at runtime before the prompt is sent to the LLM, with the current user's context injected automatically. Agent Skills can opt into the same rendering with a `templated: true` frontmatter field.
+
+### Variables
+
+| Variable | Type | Description |
+| --- | --- | --- |
+| `{{user.name}}` | string | Name of the user invoking the agent |
+| `{{user.email}}` | string | Email of the user invoking the agent |
+| `{{user.teams}}` | string[] | Team names the user belongs to |
+
+### Helpers
+
+| Helper | Output | Description |
+| --- | --- | --- |
+| `{{currentDate}}` | `2026-03-12` | Current date in UTC (YYYY-MM-DD) |
+| `{{currentTime}}` | `14:30:00 UTC` | Current time in UTC (HH:MM:SS UTC) |
+
+All [built-in Handlebars helpers](https://handlebarsjs.com/guide/builtin-helpers.html) (`#each`, `#if`, `#with`, `#unless`) are available alongside Archestra-specific helpers: `includes`, `equals`, `contains`, and `json`.
+
+### Example
+
+```handlebars
+You are a helpful assistant for {{user.name}}.
+Today's date is {{currentDate}}.
+
+{{#includes user.teams "Engineering"}}
+  You have access to engineering-specific tools and documentation.
+{{/includes}}
+
+{{#if user.teams}}
+  The user belongs to:
+  {{#each user.teams}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}.
+{{/if}}
+```

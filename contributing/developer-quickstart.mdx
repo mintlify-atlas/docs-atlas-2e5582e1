@@ -1,0 +1,109 @@
+---
+title: Developer Quickstart Guide for Archestra Contributors
+sidebarTitle: Developer Quickstart
+description: Set up the Archestra local development environment with Tilt and Kubernetes, including hot-reload, the platform UI, and supply-chain security controls.
+---
+
+This guide walks you through everything you need to get Archestra running locally for development. The platform uses a local Kubernetes cluster orchestrated by Tilt, which gives you hot-reload on code changes, a development dashboard, and a close approximation of the production deployment environment.
+
+## Prerequisites
+
+Before cloning the repository, make sure the following tools are installed and available on your `PATH`.
+
+### Core Requirements
+
+<CardGroup cols={3}>
+  <Card title="Node.js" icon="node-js">
+    Version 18–24 required. Used as the JavaScript runtime for all platform services.
+  </Card>
+  <Card title="pnpm" icon="box">
+    Version 8 or higher. Install with:
+    ```bash
+    npm install -g pnpm
+    ```
+  </Card>
+  <Card title="Git" icon="code-branch">
+    Standard version control. Required to clone the repository and work with branches.
+  </Card>
+</CardGroup>
+
+### Kubernetes Development Tools
+
+<CardGroup cols={2}>
+  <Card title="Tilt" icon="gauge-high">
+    Development environment orchestrator. See the [Tilt install guide](https://docs.tilt.dev/install.html).
+  </Card>
+  <Card title="kubectl" icon="terminal">
+    Kubernetes CLI. See the [kubectl install guide](https://kubernetes.io/docs/tasks/tools/install-kubectl-macos/).
+  </Card>
+  <Card title="Helm" icon="helm">
+    Package manager for Kubernetes. See the [Helm install guide](https://helm.sh/docs/intro/install/).
+  </Card>
+  <Card title="Local Kubernetes Cluster" icon="server">
+    Choose one option: Docker Desktop (with Kubernetes enabled), [Kind](https://kind.sigs.k8s.io/), or [OrbStack](https://orbstack.dev/) (recommended on macOS).
+  </Card>
+</CardGroup>
+
+### Development Tools
+
+- **[Biome VSCode Extension](https://marketplace.visualstudio.com/items?itemName=biomejs.biome)** — Code formatting and linting. Used across the entire codebase.
+
+## Quick Start
+
+<Steps>
+  <Step title="Clone the Repository">
+    ```bash
+    git clone https://github.com/archestra-ai/archestra.git
+    cd archestra/platform
+    ```
+  </Step>
+
+  <Step title="Launch the Development Environment">
+    Start the local Kubernetes development environment:
+
+    ```bash
+    tilt up
+    ```
+
+    This single command will:
+    - Build and deploy all platform services to your local Kubernetes cluster
+    - Set up hot-reload so code changes are reflected immediately without manual restarts
+    - Open the **Tilt UI** at `http://localhost:10350` for service health and logs
+    - Open the **Archestra UI** at `http://localhost:3000`
+
+    <Note>
+      By default, the platform allows `localhost` origins on any port for CORS. For production deployments or custom CORS configuration, see [Environment Variables](/administration/environment-variables).
+    </Note>
+  </Step>
+
+  <Step title="Understand Dependency Security">
+    The platform enforces two security controls on all dependencies to reduce supply-chain risk:
+
+    <CardGroup cols={2}>
+      <Card title="Install Scripts Disabled" icon="shield-halved">
+        Install scripts are disabled by default to prevent malicious code execution during package installation.
+      </Card>
+      <Card title="7-Day Minimum Release Age" icon="clock">
+        Newly published packages are held for 7 days before installation is allowed, guarding against package-squatting attacks.
+      </Card>
+    </CardGroup>
+
+    If a package requires its install scripts to function correctly, rebuild it manually:
+
+    ```bash
+    pnpm rebuild <package-name>
+    ```
+
+    <Tip>
+      This is rarely needed. The vast majority of packages work without their install scripts.
+    </Tip>
+  </Step>
+</Steps>
+
+## Development Workflow
+
+Once `tilt up` is running, Tilt watches your source files and automatically rebuilds and redeploys affected services when changes are detected. You can monitor all services, view logs, and trigger manual rebuilds from the Tilt UI at `http://localhost:10350`.
+
+<Note>
+  Before writing any code, check in with the team on [Slack](https://archestra.ai/join-slack). The core team can share existing designs, flag related work in progress, and give you effective feedback before you invest time in implementation. See the [Contributing Guidelines](/contributing/guidelines) for the full contribution process.
+</Note>

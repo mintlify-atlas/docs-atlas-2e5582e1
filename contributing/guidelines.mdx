@@ -1,0 +1,95 @@
+---
+title: Contribution and Code of Conduct Guidelines for Archestra
+sidebarTitle: Guidelines
+description: Learn how to contribute to Archestra — talk to the team on Slack first, submit quality PRs, follow code style, and understand the bounty and conduct rules.
+---
+
+Archestra is an open-source project maintained by a full-time core team who are passionate about building high-quality AI infrastructure. Contributions from the community are genuinely valued and welcomed — this page explains how to do it effectively and responsibly.
+
+## Talk to the Team First
+
+Before writing a single line of code, reach out. This is the single most important step in a successful contribution.
+
+<CardGroup cols={2}>
+  <Card title="Join Slack" icon="slack" href="https://archestra.ai/join-slack">
+    Post in the **#general** channel. The core team will jump in, share context, and help you avoid duplicating work already in progress.
+  </Card>
+  <Card title="Complete Contributor Onboarding" icon="id-badge" href="https://archestra.ai/contributor-onboard">
+    Takes about 60 seconds. Required before you can comment, open issues, or open pull requests on the repository.
+  </Card>
+</CardGroup>
+
+There are two reasons this matters:
+
+1. The team may already have designs or implementation plans related to your idea.
+2. Early-stage feedback is far more effective than reviewing code that was built in a different direction.
+
+If you are not sure what to say, this template works perfectly:
+
+> Hey, my name is **[your name]**, and I would love to work on **[your idea]**!
+
+## Contribute Responsibly
+
+The Archestra team encourages the use of AI tools during development. At the same time, the project benefits only from contributions made at a certain level of craft and care.
+
+Pull requests that show signs of **unreviewed AI-generated code** may be closed. Common signs include:
+
+<Accordion title="Signs of Unreviewed AI Generation">
+  - Massive AI-generated comments and description blocks that add noise without insight
+  - Code that does not follow the existing patterns and conventions of the codebase
+  - Code that violates reasonable clean code best practices
+  - Code that was not tested before being submitted
+  - Other noticeable signs of rushed or unreviewed generation
+
+  From the maintainers' perspective, carefully reviewing such a contribution can take longer than implementing the feature in-house. If your PR is closed for this reason, please do not be discouraged — rework the changes and reopen the PR when you are ready.
+</Accordion>
+
+## Bounties
+
+Archestra uses bounties as an optional way to recognise contributors for meaningful work. They are not contract jobs and do not replace coordination with maintainers.
+
+<Warning>
+  If an issue already has an assigned contributor, do not open a competing pull request, comment `/attempt`, or otherwise attempt to take over the bounty. Bots or users that try to steal already-assigned bounties will be banned from the repository.
+</Warning>
+
+Irresponsible use of AI bots to spam issues and disrupt working contributors has made this policy necessary. The team has written more about this in [Let's talk about AI slop](https://archestra.ai/blog/only-responsible-ai). Use AI responsibly, communicate clearly, and help keep the project a high-effort engineering space.
+
+## Submitting a Pull Request
+
+<Steps>
+  <Step title="Discuss Your Idea First">
+    Post in the Archestra [Slack community](https://archestra.ai/join-slack) and confirm with the team that your contribution is welcome and not already in progress.
+  </Step>
+
+  <Step title="Complete Contributor Onboarding">
+    Sign in via GitHub at [archestra.ai/contributor-onboard](https://archestra.ai/contributor-onboard). A CI job adds your username to the `EXTERNAL_CONTRIBUTORS.md` file, granting you access to participate in the repository.
+  </Step>
+
+  <Step title="Set Up Your Development Environment">
+    Follow the [Developer Quickstart](/contributing/developer-quickstart) to get the platform running locally with Tilt and a local Kubernetes cluster.
+  </Step>
+
+  <Step title="Write and Test Your Changes">
+    Follow the existing code style enforced by the Biome formatter and linter. Test your changes thoroughly before opening a PR. Do not submit code that has not been run locally.
+  </Step>
+
+  <Step title="Open a Pull Request">
+    Push your branch and open a pull request against `main`. Provide a clear description of what the change does and why. Reference any related issue numbers.
+  </Step>
+
+  <Step title="Respond to Review Feedback">
+    The core team will review your PR and may request changes. Engage with feedback constructively — the goal is always a high-quality outcome for the project.
+  </Step>
+</Steps>
+
+## Code Style
+
+- **Formatter and linter**: [Biome](https://biomejs.dev/) — install the [VSCode extension](https://marketplace.visualstudio.com/items?itemName=biomejs.biome) to get real-time feedback.
+- Follow the **existing patterns and conventions** in the part of the codebase you are modifying.
+- Avoid large blocks of auto-generated comments; write comments that explain *why*, not *what*.
+
+## Access for External Contributors
+
+To prevent AI spam on issues and pull requests, the repository has GitHub's **"Limit to prior contributors"** setting enabled. This blocks anyone who has not committed to `main` from commenting or opening issues.
+
+Completing the [contributor onboarding](https://archestra.ai/contributor-onboard) flow adds your GitHub username to `EXTERNAL_CONTRIBUTORS.md`, making you a "prior contributor" and granting you full participation access — no manual maintainer action required.

@@ -1,0 +1,686 @@
+---
+title: "Supported LLM Providers in Archestra Platform"
+sidebarTitle: "Providers"
+description: "Connection details, authentication, and setup steps for every LLM provider supported by the Archestra LLM Proxy, including cloud, self-hosted, and IAM-authenticated options."
+---
+
+Archestra acts as a security proxy between your AI applications and LLM providers, supporting a broad range of cloud APIs, enterprise-managed services, and self-hosted inference engines. Each provider has a dedicated proxy route with its own base URL and authentication method. For providers that require cloud IAM — Vertex AI and AWS Bedrock — Archestra integrates with workload identity so no API keys are needed at runtime.
+
+## OpenAI-Compatible Model Router
+
+The Model Router exposes a single OpenAI-compatible interface that can route to models across all configured providers. Use it to switch between providers without changing client code.
+
+### Supported APIs
+
+- **Responses API** (`/responses`) — for text requests across model-router-compatible providers
+- **Chat Completions API** (`/chat/completions`) — for text chat requests across model-router-compatible providers
+- **Models API** (`/models`) — returns provider-qualified chat and embedding model IDs
+- **Embeddings API** (`/embeddings`) — OpenAI embedding models only
+
+### Connection Details
+
+| Field | Value |
+|-------|-------|
+| Base URL | `https://your-archestra-instance/v1/model-router/{llm-proxy-id}` |
+| Authentication | Virtual API key or LLM OAuth client access token as `Bearer <token>` |
+
+### Model IDs
+
+Use provider-qualified model IDs for deterministic routing: `openai:gpt-5.4`, `anthropic:claude-opus-4-6-20250918`, `groq:llama-3.1-8b-instant`, `bedrock:amazon.nova-pro-v1:0`. Call `GET /v1/model-router/{llm-proxy-id}/models` to list all available model IDs for your configured providers.
+
+<Note>
+  Providers that use native request formats — Anthropic, Bedrock, Gemini, and Cohere — are translated between OpenAI and provider-native formats by the Model Router. Translation is text-first; non-text content parts such as `image_url` are dropped for Anthropic, Gemini, and Cohere routes (Bedrock supports base64 data URL images).
+</Note>
+
+---
+
+## Provider Reference
+
+<Accordion title="OpenAI">
+  OpenAI is the default and most commonly used provider. Archestra proxies both the Chat Completions and Responses APIs with full streaming support.
+
+  ### Supported APIs
+  - Chat Completions API (`/chat/completions`)
+  - Responses API (`/responses`) — recommended for new integrations
+  - Embeddings API (`/embeddings`)
+
+  ### Connection Details
+
+  | Field | Value |
+  |-------|-------|
+  | Base URL | `https://your-archestra-instance/v1/openai/{profile-id}` |
+  | Authentication | OpenAI API key as `Authorization: Bearer <key>` |
+
+  ```bash
+  curl -X POST "https://your-archestra-instance/v1/openai/{profile-id}/chat/completions" \
+    -H "Authorization: Bearer $OPENAI_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "Hello"}]}'
+  ```
+
+  <Note>
+    OpenAI streaming responses require your cloud provider's load balancer to support long-lived connections. See the Cloud Provider Configuration docs for streaming timeout settings.
+  </Note>
+</Accordion>
+
+<Accordion title="Anthropic">
+  Archestra proxies the Anthropic Messages API. Claude models on Microsoft Azure Foundry are also supported via a separate configuration.
+
+  ### Supported APIs
+  - Messages API (`/messages`)
+
+  ### Connection Details
+
+  | Field | Value |
+  |-------|-------|
+  | Base URL | `https://your-archestra-instance/v1/anthropic/{profile-id}` |
+  | Authentication | Anthropic API key in the `x-api-key` header |
+  | Messages path | `POST /v1/anthropic/{profile-id}/v1/messages` |
+
+  ```bash
+  curl -X POST "https://your-archestra-instance/v1/anthropic/{profile-id}/v1/messages" \
+    -H "x-api-key: $ANTHROPIC_API_KEY" \
+    -H "anthropic-version: 2023-06-01" \
+    -H "Content-Type: application/json" \
+    -d '{"model": "claude-opus-4-6-20250918", "max_tokens": 1024, "messages": [{"role": "user", "content": "Hello"}]}'
+  ```
+
+  ### Anthropic on Microsoft Foundry
+
+  Claude models deployed in Microsoft Foundry use the Anthropic Messages API at `https://<resource>.services.ai.azure.com/anthropic`. Set `ARCHESTRA_ANTHROPIC_BASE_URL` to that `/anthropic` base URL.
+
+  For keyless Microsoft Entra ID authentication, set `ARCHESTRA_ANTHROPIC_AZURE_FOUNDRY_ENTRA_ID_ENABLED=true`. Archestra will send a bearer token scoped to `https://ai.azure.com/.default`.
+
+  <Warning>
+    Claude Foundry deployments must exist in Azure before requests will work. Azure requires Anthropic deployment metadata (`industry`, `organizationName`, `countryCode`) when creating Claude deployments. Microsoft lists additional prerequisites: a paid eligible Azure subscription, a supported region (East US2, Sweden Central), Azure Marketplace access, and Contributor or Owner role on the resource group.
+  </Warning>
+</Accordion>
+
+<Accordion title="Google Gemini and Vertex AI">
+  Archestra supports both Google AI Studio (Gemini Developer API) and Vertex AI implementations of the Gemini API.
+
+  ### Supported APIs
+  - Generate Content API (`:generateContent`)
+  - Stream Generate Content API (`:streamGenerateContent`)
+
+  ### Connection Details
+
+  | Field | Value |
+  |-------|-------|
+  | Base URL | `https://your-archestra-instance/v1/gemini/{profile-id}/v1beta` |
+  | Authentication (AI Studio) | Gemini API key in the `x-goog-api-key` header |
+  | Authentication (Vertex AI) | No client key required — uses server-side Application Default Credentials |
+
+  ### Vertex AI Environment Variables
+
+  | Variable | Required | Description |
+  |----------|:--------:|-------------|
+  | `ARCHESTRA_GEMINI_VERTEX_AI_ENABLED` | Yes | Set to `true` to enable Vertex AI mode |
+  | `ARCHESTRA_GEMINI_VERTEX_AI_PROJECT` | Yes | Your GCP project ID |
+  | `ARCHESTRA_GEMINI_VERTEX_AI_LOCATION` | No | GCP region (default: `us-central1`) |
+  | `ARCHESTRA_GEMINI_VERTEX_AI_CREDENTIALS_FILE` | No | Path to service account JSON key file |
+
+  ### GKE with Workload Identity (Recommended)
+
+  For GKE deployments, use Workload Identity for secure keyless authentication — no service account JSON key files needed.
+
+  <Steps>
+    <Step title="Create a GCP Service Account">
+      ```bash
+      gcloud iam service-accounts create archestra-vertex-ai \
+        --display-name="Archestra Vertex AI"
+
+      gcloud projects add-iam-policy-binding PROJECT_ID \
+        --member="serviceAccount:archestra-vertex-ai@PROJECT_ID.iam.gserviceaccount.com" \
+        --role="roles/aiplatform.user"
+      ```
+    </Step>
+    <Step title="Bind to the Kubernetes Service Account">
+      ```bash
+      gcloud iam service-accounts add-iam-policy-binding \
+        archestra-vertex-ai@PROJECT_ID.iam.gserviceaccount.com \
+        --role="roles/iam.workloadIdentityUser" \
+        --member="serviceAccount:PROJECT_ID.svc.id.goog[NAMESPACE/KSA_NAME]"
+      ```
+      Replace `NAMESPACE` with your Helm release namespace and `KSA_NAME` with the Kubernetes service account name (defaults to `archestra-platform`).
+    </Step>
+    <Step title="Configure Helm Values">
+      ```yaml
+      archestra:
+        orchestrator:
+          kubernetes:
+            serviceAccount:
+              annotations:
+                iam.gke.io/gcp-service-account: archestra-vertex-ai@PROJECT_ID.iam.gserviceaccount.com
+        env:
+          ARCHESTRA_GEMINI_VERTEX_AI_ENABLED: "true"
+          ARCHESTRA_GEMINI_VERTEX_AI_PROJECT: "PROJECT_ID"
+          ARCHESTRA_GEMINI_VERTEX_AI_LOCATION: "us-central1"
+      ```
+    </Step>
+  </Steps>
+
+  ### Other Environments
+
+  For non-GKE environments, Vertex AI supports several ADC authentication methods:
+
+  - **Service account key file**: Set `ARCHESTRA_GEMINI_VERTEX_AI_CREDENTIALS_FILE` to the path of a JSON key file
+  - **Local development**: Run `gcloud auth application-default login`
+  - **Cloud environments**: Compute Engine, Cloud Run, and Cloud Functions automatically detect attached service accounts
+  - **AWS/Azure**: Use workload identity federation for keyless cross-cloud authentication
+</Accordion>
+
+<Accordion title="Azure AI Foundry">
+  Azure AI Foundry (formerly Azure OpenAI) provides enterprise-grade access to OpenAI models through Microsoft Azure with both API key and keyless Entra ID authentication.
+
+  ### Supported APIs
+  - Chat Completions (streaming and non-streaming)
+  - Responses API (streaming and non-streaming)
+
+  ### Connection Details
+
+  | Field | Value |
+  |-------|-------|
+  | Base URL | `https://your-archestra-instance/v1/azure/{profile-id}` |
+  | Authentication (API key) | Azure API key as `Authorization: Bearer <key>` |
+  | Authentication (keyless) | Set `ARCHESTRA_AZURE_OPENAI_ENTRA_ID_ENABLED=true` |
+
+  ### Environment Variables
+
+  | Variable | Required | Description |
+  |----------|:--------:|-------------|
+  | `ARCHESTRA_AZURE_OPENAI_BASE_URL` | No | Default Azure OpenAI resource URL or Foundry v1 URL |
+  | `ARCHESTRA_AZURE_OPENAI_API_VERSION` | No | Azure OpenAI API version (default: `2024-02-01`) |
+  | `ARCHESTRA_AZURE_OPENAI_RESPONSES_API_VERSION` | No | Azure Responses API version (default: `2025-04-01-preview`) |
+  | `ARCHESTRA_AZURE_OPENAI_ENTRA_ID_ENABLED` | No | Set to `true` to use Microsoft Entra ID instead of an API key |
+  | `ARCHESTRA_CHAT_AZURE_OPENAI_API_KEY` | No | Default API key for Azure AI Foundry chat |
+
+  ### Base URL Formats
+
+  For Azure OpenAI resources, use the resource-level URL (not deployment-specific):
+  ```
+  https://<resource-name>.openai.azure.com/openai
+  ```
+
+  For Microsoft Foundry v1:
+  ```
+  https://<resource-name>.services.ai.azure.com/openai/v1
+  ```
+
+  ### Keyless Authentication with Microsoft Entra ID
+
+  Set `ARCHESTRA_AZURE_OPENAI_ENTRA_ID_ENABLED=true`, then create an Azure provider key in Archestra with no API key value and set its Base URL to the Azure resource endpoint. Archestra uses `DefaultAzureCredential` — deployment URLs use the `https://cognitiveservices.azure.com/.default` scope; Foundry v1 URLs use `https://ai.azure.com/.default`.
+
+  ### AKS with Microsoft Entra Workload ID
+
+  <Steps>
+    <Step title="Enable OIDC and Workload Identity on AKS">
+      ```bash
+      az aks update \
+        --resource-group "$AKS_RESOURCE_GROUP" \
+        --name "$AKS_CLUSTER_NAME" \
+        --enable-oidc-issuer \
+        --enable-workload-identity
+
+      export AKS_OIDC_ISSUER="$(az aks show \
+        --resource-group "$AKS_RESOURCE_GROUP" \
+        --name "$AKS_CLUSTER_NAME" \
+        --query oidcIssuerProfile.issuerUrl \
+        --output tsv)"
+      ```
+    </Step>
+    <Step title="Create a Federated Identity Credential">
+      ```bash
+      az identity federated-credential create \
+        --resource-group "$IDENTITY_RESOURCE_GROUP" \
+        --identity-name "$USER_ASSIGNED_IDENTITY_NAME" \
+        --name archestra-platform \
+        --issuer "$AKS_OIDC_ISSUER" \
+        --subject "system:serviceaccount:$NAMESPACE:$SERVICE_ACCOUNT_NAME" \
+        --audience api://AzureADTokenExchange
+      ```
+    </Step>
+    <Step title="Configure Helm Values">
+      ```yaml
+      archestra:
+        orchestrator:
+          kubernetes:
+            serviceAccount:
+              name: archestra-platform
+              annotations:
+                azure.workload.identity/client-id: "<user-assigned-managed-identity-client-id>"
+        podLabels:
+          azure.workload.identity/use: "true"
+        env:
+          ARCHESTRA_AZURE_OPENAI_ENTRA_ID_ENABLED: "true"
+      ```
+    </Step>
+  </Steps>
+
+  Assign the managed identity the `Cognitive Services OpenAI User` role for Azure OpenAI deployment URLs, or `Cognitive Services User` for Foundry Models.
+</Accordion>
+
+<Accordion title="AWS Bedrock">
+  Archestra supports the Bedrock Converse and Converse Stream APIs with both API key and AWS IAM authentication. IAM authentication uses the AWS credential chain (IRSA, instance profiles, environment variables) via SigV4 signing — no API key needed.
+
+  ### Supported APIs
+  - Converse API (`/converse`)
+  - Converse Stream API (`/converse-stream`)
+
+  ### Connection Details
+
+  | Field | Value |
+  |-------|-------|
+  | Base URL | `https://your-archestra-instance/v1/bedrock/{profile-id}` |
+  | Authentication | Bearer API key or AWS IAM (see below) |
+
+  ### Environment Variables
+
+  **Common (both auth methods):**
+
+  | Variable | Required | Description |
+  |----------|:--------:|-------------|
+  | `ARCHESTRA_BEDROCK_BASE_URL` | Yes | Bedrock runtime endpoint (e.g., `https://bedrock-runtime.us-east-1.amazonaws.com`) |
+  | `ARCHESTRA_BEDROCK_ALLOWED_PROVIDERS` | No | Comma-separated provider prefixes to include (default: all) |
+  | `ARCHESTRA_BEDROCK_ALLOWED_INFERENCE_REGIONS` | No | Comma-separated region prefixes, e.g. `us,global` (default: all) |
+
+  **API key auth:**
+
+  | Variable | Required | Description |
+  |----------|:--------:|-------------|
+  | `ARCHESTRA_CHAT_BEDROCK_API_KEY` | No | Default API key for Bedrock |
+
+  **IAM auth:**
+
+  | Variable | Required | Description |
+  |----------|:--------:|-------------|
+  | `ARCHESTRA_BEDROCK_IAM_AUTH_ENABLED` | Yes | Set to `true` to enable IAM authentication |
+  | `ARCHESTRA_BEDROCK_REGION` | No | Explicit AWS region (falls back to extracting from base URL) |
+
+  ### IAM Authentication Setup (IRSA on EKS)
+
+  <Steps>
+    <Step title="Create an IAM Role with Bedrock Permissions">
+      ```json
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": ["bedrock:Converse", "bedrock:ConverseStream"],
+            "Resource": [
+              "arn:aws:bedrock:*:<ACCOUNT_ID>:inference-profile/us.anthropic.*",
+              "arn:aws:bedrock:*::foundation-model/anthropic.*"
+            ]
+          },
+          {
+            "Effect": "Allow",
+            "Action": ["bedrock:ListInferenceProfiles"],
+            "Resource": "*"
+          }
+        ]
+      }
+      ```
+    </Step>
+    <Step title="Create an OIDC Provider for Your EKS Cluster">
+      Enable the OIDC provider for your cluster. See the [AWS IRSA guide](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) for steps.
+    </Step>
+    <Step title="Configure the IAM Trust Policy">
+      ```json
+      {
+        "Effect": "Allow",
+        "Principal": {
+          "Federated": "arn:aws:iam::<ACCOUNT_ID>:oidc-provider/oidc.eks.<REGION>.amazonaws.com/id/<OIDC_ID>"
+        },
+        "Action": "sts:AssumeRoleWithWebIdentity",
+        "Condition": {
+          "StringEquals": {
+            "oidc.eks.<REGION>.amazonaws.com/id/<OIDC_ID>:sub": "system:serviceaccount:archestra:archestra-platform"
+          }
+        }
+      }
+      ```
+    </Step>
+    <Step title="Annotate the Archestra Service Account">
+      ```bash
+      kubectl annotate sa archestra-platform -n archestra \
+        eks.amazonaws.com/role-arn=arn:aws:iam::<ACCOUNT_ID>:role/<ROLE_NAME>
+      ```
+    </Step>
+    <Step title="Set Environment Variables and Restart">
+      Set `ARCHESTRA_BEDROCK_IAM_AUTH_ENABLED=true` and `ARCHESTRA_BEDROCK_BASE_URL` to your regional endpoint, then restart the deployment.
+    </Step>
+  </Steps>
+
+  ### Model Discovery and Filtering
+
+  Archestra uses the Bedrock `ListInferenceProfiles` API to discover available models, so only models with inference profiles configured in your AWS account appear in the picker.
+
+  Filter models using environment variables:
+
+  ```bash
+  # Only Anthropic and Amazon models
+  ARCHESTRA_BEDROCK_ALLOWED_PROVIDERS=anthropic,amazon
+
+  # Only US and global inference regions
+  ARCHESTRA_BEDROCK_ALLOWED_INFERENCE_REGIONS=us,global
+  ```
+
+  Common provider prefixes: `anthropic`, `amazon`, `meta`, `mistral`, `deepseek`, `cohere`, `writer`.
+  Known region prefixes: `us`, `eu`, `ap`, `global`.
+</Accordion>
+
+<Accordion title="Groq">
+  Groq provides low-latency inference for popular open-source models through an OpenAI-compatible API.
+
+  ### Supported APIs
+  - Chat Completions API (`/chat/completions`) — OpenAI-compatible
+
+  ### Connection Details
+
+  | Field | Value |
+  |-------|-------|
+  | Base URL | `https://your-archestra-instance/v1/groq/{profile-id}` |
+  | Authentication | Groq API key as `Authorization: Bearer <key>` |
+
+  ### Environment Variables
+
+  | Variable | Required | Description |
+  |----------|:--------:|-------------|
+  | `ARCHESTRA_GROQ_BASE_URL` | No | Groq API base URL (default: `https://api.groq.com/openai/v1`) |
+  | `ARCHESTRA_CHAT_GROQ_API_KEY` | No | Default API key for Groq |
+
+  ### Popular Models
+  - `llama-3.3-70b-versatile`
+  - `llama-3.1-8b-instant`
+  - `gemma2-9b-it`
+
+  Get an API key from the [Groq Console](https://console.groq.com/keys).
+</Accordion>
+
+<Accordion title="Mistral AI">
+  Mistral AI provides state-of-the-art open and commercial AI models through an OpenAI-compatible API.
+
+  ### Supported APIs
+  - Chat Completions API (`/chat/completions`)
+
+  ### Connection Details
+
+  | Field | Value |
+  |-------|-------|
+  | Base URL | `https://your-archestra-instance/v1/mistral/{agent-id}` |
+  | Authentication | Mistral API key as `Authorization: Bearer <key>` |
+
+  Get an API key from the [Mistral AI Console](https://console.mistral.ai/api-keys).
+</Accordion>
+
+<Accordion title="xAI (Grok)">
+  xAI offers the Grok series of large language models with real-time information access and advanced reasoning capabilities via an OpenAI-compatible API.
+
+  ### Supported APIs
+  - Chat Completions API (`/chat/completions`) — OpenAI-compatible
+
+  ### Connection Details
+
+  | Field | Value |
+  |-------|-------|
+  | Base URL | `https://your-archestra-instance/v1/xai/{profile-id}` |
+  | Authentication | xAI API key as `Authorization: Bearer <key>` |
+
+  ### Environment Variables
+
+  | Variable | Required | Description |
+  |----------|:--------:|-------------|
+  | `ARCHESTRA_XAI_BASE_URL` | No | xAI API base URL (default: `https://api.x.ai/v1`) |
+  | `ARCHESTRA_CHAT_XAI_API_KEY` | No | Default API key for xAI |
+
+  ### Popular Models
+  - `grok-2-latest`
+  - `grok-2-mini`
+  - `grok-beta`
+
+  Get an API key from the [xAI Console](https://console.x.ai/).
+</Accordion>
+
+<Accordion title="OpenRouter">
+  OpenRouter provides access to a large number of models — including free ones — through a single OpenAI-compatible API.
+
+  ### Supported APIs
+  - Chat Completions API (`/chat/completions`) — OpenAI-compatible
+  - Embeddings API (`/embeddings`) — for Knowledge Base embeddings
+
+  ### Connection Details
+
+  | Field | Value |
+  |-------|-------|
+  | Base URL | `https://your-archestra-instance/v1/openrouter/{profile-id}` |
+  | Authentication | OpenRouter API key as `Authorization: Bearer <key>` |
+
+  ### Environment Variables
+
+  | Variable | Required | Description |
+  |----------|:--------:|-------------|
+  | `ARCHESTRA_OPENROUTER_BASE_URL` | No | OpenRouter API base URL (default: `https://openrouter.ai/api/v1`) |
+  | `ARCHESTRA_CHAT_OPENROUTER_API_KEY` | No | Default API key for OpenRouter |
+  | `ARCHESTRA_OPENROUTER_REFERER` | No | Attribution `HTTP-Referer` sent to OpenRouter |
+  | `ARCHESTRA_OPENROUTER_TITLE` | No | App name sent as `X-OpenRouter-Title` |
+  | `ARCHESTRA_OPENROUTER_CATEGORIES` | No | Comma-separated marketplace categories |
+
+  ### Free Models
+
+  OpenRouter exposes `:free` model variants at no cost. An API key is still required. Use `openrouter/free` as the model ID to route to OpenRouter's built-in free model picker, which selects a free model per request based on the features needed (tool calling, structured outputs, image input). When an OpenRouter key is added to an organization with no default model configured, Archestra sets the Free Models Router as the org default.
+
+  Get an API key from the [OpenRouter dashboard](https://openrouter.ai/keys).
+</Accordion>
+
+<Accordion title="Cerebras">
+  Cerebras provides fast inference for open-source AI models through an OpenAI-compatible API.
+
+  ### Supported APIs
+  - Chat Completions API (`/chat/completions`)
+
+  ### Connection Details
+
+  | Field | Value |
+  |-------|-------|
+  | Base URL | `https://your-archestra-instance/v1/cerebras/{agent-id}` |
+  | Authentication | Cerebras API key as `Authorization: Bearer <key>` |
+</Accordion>
+
+<Accordion title="Cohere">
+  Cohere provides enterprise-grade LLMs with safety guardrails, function calling, and streaming support.
+
+  ### Supported APIs
+  - Chat API (`/chat`)
+  - Streaming
+
+  ### Connection Details
+
+  | Field | Value |
+  |-------|-------|
+  | Base URL | `https://your-archestra-instance/v1/cohere/{profile-id}` |
+  | Authentication | Cohere API key as `Authorization: Bearer <key>` |
+
+  ### Environment Variables
+
+  | Variable | Required | Description |
+  |----------|:--------:|-------------|
+  | `ARCHESTRA_COHERE_BASE_URL` | No | Cohere API base URL (default: `https://api.cohere.ai`) |
+  | `ARCHESTRA_CHAT_COHERE_API_KEY` | No | Default API key for Cohere |
+
+  Get an API key from the [Cohere Dashboard](https://dashboard.cohere.ai/).
+</Accordion>
+
+<Accordion title="DeepSeek">
+  DeepSeek offers high-performance language models. Use the Model Router to route to DeepSeek with the `deepseek:` model prefix.
+
+  DeepSeek is supported through the Bedrock inference profiles and the Model Router. Configure access through AWS Bedrock or a direct DeepSeek API key via the OpenAI-compatible route.
+</Accordion>
+
+<Accordion title="MiniMax">
+  MiniMax provides the MiniMax-M2 series with chain-of-thought reasoning capabilities and support for text and multi-turn conversations.
+
+  ### Supported APIs
+  - Chat Completions API (`/chat/completions`) — OpenAI-compatible (text-only)
+
+  ### Connection Details
+
+  | Field | Value |
+  |-------|-------|
+  | Base URL | `https://your-archestra-instance/v1/minimax/{profile-id}` |
+  | Authentication | MiniMax API key as `Authorization: Bearer <key>` |
+
+  ### Environment Variables
+
+  | Variable | Required | Description |
+  |----------|:--------:|-------------|
+  | `ARCHESTRA_CHAT_MINIMAX_API_KEY` | No | Default API key for MiniMax |
+  | `ARCHESTRA_CHAT_MINIMAX_BASE_URL` | No | MiniMax API base URL (default: `https://api.minimax.io/v1`) |
+
+  ### Available Models
+
+  | Model | Input/Output (per M tokens) |
+  |-------|---------------------------|
+  | MiniMax-M2 | $0.3 / $1.2 |
+  | MiniMax-M2.1 | $0.3 / $1.2 |
+  | MiniMax-M2.1-lightning | $0.6 / $2.4 |
+  | MiniMax-M2.5 | $0.3 / $1.2 |
+  | MiniMax-M2.5-highspeed | $0.6 / $2.4 |
+
+  Get an API key from the [MiniMax Platform](https://www.minimax.io/).
+</Accordion>
+
+<Accordion title="ZhipuAI">
+  ZhipuAI (Z.ai) offers the GLM series of large language models with strong performance in Chinese and English.
+
+  ### Supported APIs
+  - Chat Completions API (`/chat/completions`) — OpenAI-compatible
+
+  ### Connection Details
+
+  | Field | Value |
+  |-------|-------|
+  | Base URL | `https://your-archestra-instance/v1/zhipuai/{profile-id}` |
+  | Authentication | ZhipuAI API key as `Authorization: Bearer <key>` |
+
+  ### Environment Variables
+
+  | Variable | Required | Description |
+  |----------|:--------:|-------------|
+  | `ARCHESTRA_ZHIPUAI_BASE_URL` | No | ZhipuAI API base URL (default: `https://api.z.ai/api/paas/v4`) |
+  | `ARCHESTRA_CHAT_ZHIPUAI_API_KEY` | No | Default API key for ZhipuAI |
+
+  ### Popular Models
+  - **GLM-4.5-Flash** — Free tier, fast inference
+  - **GLM-4.5** — Balanced, general use
+  - **GLM-4.5-Air** — Lightweight, speed-optimized
+  - **GLM-4.6** / **GLM-4.7** — Enhanced capabilities
+
+  Get an API key from the [Zhipu AI Platform](https://z.ai/).
+</Accordion>
+
+<Accordion title="Perplexity AI">
+  Perplexity AI provides AI-powered search and answer generation with real-time web search capabilities.
+
+  ### Supported APIs
+  - Chat Completions API (`/chat/completions`) — OpenAI-compatible
+
+  ### Connection Details
+
+  | Field | Value |
+  |-------|-------|
+  | Base URL | `https://your-archestra-instance/v1/perplexity/{agent-id}` |
+  | Authentication | Perplexity API key as `Authorization: Bearer <key>` |
+
+  ### Environment Variables
+
+  | Variable | Required | Description |
+  |----------|:--------:|-------------|
+  | `ARCHESTRA_PERPLEXITY_BASE_URL` | No | Perplexity API base URL (default: `https://api.perplexity.ai`) |
+  | `ARCHESTRA_CHAT_PERPLEXITY_API_KEY` | No | Default API key for Perplexity |
+
+  ### Popular Models
+  - `sonar-pro` — Best for deep search-augmented generation
+  - `sonar` — General-purpose search model
+  - `sonar-deep-research` — Extended research tasks
+
+  <Warning>
+    Perplexity does **not** support external tool calling. It performs internal web searches and returns results in the response. Use Perplexity for search-augmented generation, not agentic workflows that require custom tools.
+  </Warning>
+
+  Get an API key from [Perplexity Settings](https://www.perplexity.ai/settings/api).
+</Accordion>
+
+<Accordion title="vLLM (Self-Hosted)">
+  vLLM is a high-throughput, memory-efficient inference engine for self-hosted open-source models.
+
+  ### Supported APIs
+  - Chat Completions API (`/chat/completions`) — OpenAI-compatible
+
+  ### Connection Details
+
+  | Field | Value |
+  |-------|-------|
+  | Base URL | `https://your-archestra-instance/v1/vllm/{profile-id}` |
+  | Authentication | API key is optional — pass as `Authorization: Bearer <key>` if your vLLM deployment requires auth |
+
+  ### Setup
+
+  <Steps>
+    <Step title="Add a vLLM API Key">
+      Go to **Settings > LLM API Keys** and add a new key with provider **vLLM**.
+    </Step>
+    <Step title="Set the Base URL">
+      Set the **Base URL** to your vLLM server (e.g., `http://your-vllm-host:8000/v1`). The API key can be left blank for most self-hosted deployments.
+    </Step>
+  </Steps>
+
+  ### Environment Variables
+
+  | Variable | Required | Description |
+  |----------|:--------:|-------------|
+  | `ARCHESTRA_VLLM_BASE_URL` | Yes | vLLM server base URL (e.g., `http://localhost:8000/v1`) |
+  | `ARCHESTRA_CHAT_VLLM_API_KEY` | No | API key for vLLM server (optional for most deployments) |
+
+  <Note>
+    The vLLM provider is only available when `ARCHESTRA_VLLM_BASE_URL` is set or a per-key base URL is configured in the UI. Per-key base URLs take precedence over the environment variable.
+  </Note>
+</Accordion>
+
+<Accordion title="Ollama (Local)">
+  Ollama is a local LLM runner for running open-source models on your own machine, ideal for local development, testing, and privacy-conscious deployments.
+
+  ### Supported APIs
+  - Chat Completions API (`/chat/completions`) — OpenAI-compatible
+
+  ### Connection Details
+
+  | Field | Value |
+  |-------|-------|
+  | Base URL | `https://your-archestra-instance/v1/ollama/{profile-id}` |
+  | Authentication | API key is optional — pass as `Authorization: Bearer <key>` if required (e.g., Ollama Cloud) |
+
+  ### Setup
+
+  <Steps>
+    <Step title="Pull Your Model">
+      ```bash
+      ollama pull llama3.2
+      ```
+    </Step>
+    <Step title="Add an Ollama API Key">
+      Go to **Settings > LLM API Keys** and add a new key with provider **Ollama**. Optionally set the Base URL if your Ollama server runs on a non-default host/port.
+    </Step>
+  </Steps>
+
+  ### Environment Variables
+
+  | Variable | Required | Description |
+  |----------|:--------:|-------------|
+  | `ARCHESTRA_OLLAMA_BASE_URL` | No | Ollama server base URL (default: `http://localhost:11434/v1`) |
+  | `ARCHESTRA_CHAT_OLLAMA_API_KEY` | No | API key for Ollama (optional, for Ollama Cloud) |
+
+  <Note>
+    Ollama is enabled by default with a base URL of `http://localhost:11434/v1`. Models must be pulled with `ollama pull <model-name>` before they can be used through Archestra.
+  </Note>
+</Accordion>

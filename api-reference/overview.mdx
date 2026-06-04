@@ -1,0 +1,190 @@
+---
+title: "Archestra REST API Reference and Authentication Guide"
+sidebarTitle: "API Overview"
+description: "Complete reference for the Archestra REST API — authentication, base URL, key resource areas, rate limits, and the OpenAPI spec."
+---
+
+The Archestra platform exposes a REST API that lets you manage every resource available in the UI — agents, MCP registry entries, MCP gateways, LLM proxies, knowledge bases, and more — from scripts, CI pipelines, or infrastructure-as-code tools. Every request must carry a valid credential in the `Authorization` header, and all endpoints are served from a single base URL that you can override for production deployments.
+
+## Authentication
+
+Archestra supports two credential types. Both are passed in the same header format and grant access based on the role associated with the credential.
+
+```http
+Authorization: Bearer <token>
+```
+
+<Tabs>
+  <Tab title="Personal API Keys">
+    Personal API keys are tied to a single user account. Create them from **Settings → API Keys**. The key inherits the role of its owner, so any permission change made to that user immediately affects every request made with their key.
+
+    Use personal API keys for:
+    - Local development scripts and CLI tooling
+    - User-owned automation and one-off integrations
+    - Quick prototyping against the API
+
+    <Warning>
+      Because a personal API key reflects the owner's current role, revoking or demoting that user instantly invalidates the key's effective permissions. Use service accounts for shared production integrations to avoid unexpected access loss.
+    </Warning>
+  </Tab>
+  <Tab title="Service Accounts">
+    Service accounts are organization-owned identities built for automation. Create them from **Settings → Service Accounts**, assign a role, then generate one or more tokens for that account.
+
+    Use service accounts for:
+    - CI/CD pipelines and scheduled jobs
+    - Shared team integrations that must not depend on an individual user remaining active
+    - Production automation with auditable, revocable credentials
+
+    <Tip>
+      Disable or delete the service account to immediately stop all of its tokens, or delete a single token when rotating credentials without disrupting the others.
+    </Tip>
+  </Tab>
+</Tabs>
+
+## Base URL
+
+| Environment | Base URL |
+|---|---|
+| Local development (Docker quick-start) | `http://localhost:9000` |
+| Production | Configurable via `ARCHESTRA_API_BASE_URL` |
+
+In the Docker quick-start, the API is available at `http://localhost:9000` and the Admin UI at `http://localhost:3000`. For Helm-based production deployments, set `ARCHESTRA_API_BASE_URL` to the external URL of your Archestra instance — for example, `https://api.archestra.example.com`. This value is displayed in connection instructions inside the UI and can accept multiple comma-separated URLs when you need to expose both an internal Kubernetes service URL and an external ingress endpoint.
+
+<Note>
+  `ARCHESTRA_API_BASE_URL` controls connection-instruction display and defaults to `http://localhost:9000` when unset. It does not affect internal routing between the frontend and backend within a pod.
+</Note>
+
+## Key API Areas
+
+<CardGroup cols={2}>
+  <Card title="Agents" icon="robot">
+    Create, read, update, and delete agents with full pagination, filtering by name, type (`agent`, `mcp_gateway`, `llm_proxy`, `profile`), scope (`personal`, `team`, `org`, `built_in`), and label.
+
+    **Base path:** `/api/agents`
+  </Card>
+  <Card title="MCP Registry" icon="server">
+    Manage the catalog of available MCP servers — register new entries, inspect installation status, trigger reinstalls, and list available tools per server.
+
+    **Base path:** `/api/mcp_server`
+  </Card>
+  <Card title="MCP Gateways" icon="network-wired">
+    Retrieve and configure MCP gateway agents that expose MCP tool endpoints to connected clients. The default gateway is available at `/api/mcp-gateways/default`.
+
+    **Base path:** `/api/mcp-gateways`
+  </Card>
+  <Card title="LLM Proxies" icon="shuffle">
+    Read and manage LLM proxy agents that route model traffic, apply optimization rules, and enforce usage limits. The default proxy is at `/api/llm-proxy/default`.
+
+    **Base path:** `/api/llm-proxy`
+  </Card>
+  <Card title="Knowledge Bases" icon="book">
+    List, create, and manage knowledge bases for your organization — including health checks, file ingestion, and connector configuration.
+
+    **Base path:** `/api/knowledge-bases`
+  </Card>
+  <Card title="Observability & Statistics" icon="chart-line">
+    Query usage statistics broken down by team, agent, and model. Pair with the Prometheus metrics endpoint (`/metrics`) and Grafana dashboards for full observability.
+
+    **Base path:** `/api/statistics`
+  </Card>
+</CardGroup>
+
+## Rate Limits
+
+The Archestra API enforces no rate limits by default. Organization-level usage limits — scoped to the organization, team, user, agent, LLM proxy, or virtual API key — can be configured through **Settings → LLM Settings** to cap token spend across one or more models. These usage limits are evaluated against recorded model traffic rather than request counts, and each limit carries its own cleanup interval (rolling or calendar-based).
+
+<Note>
+  Usage limits apply to LLM proxy traffic rather than to raw API requests. If you need to restrict API call frequency for a specific integration, consider using a dedicated service account with a scoped role.
+</Note>
+
+## OpenAPI Specification
+
+The complete OpenAPI 3.0 spec for the Archestra API (version 1.2.56) is served directly from your instance:
+
+```
+GET /openapi.json
+```
+
+Import this URL into API clients to get auto-generated request builders and inline schema documentation:
+
+<Accordion title="Importing into Postman or Insomnia">
+  **Postman**
+  1. Open Postman and click **Import**.
+  2. Select **Link** and enter `http://localhost:9000/openapi.json` (or your production base URL).
+  3. Postman generates a collection with every endpoint, parameter, and example response.
+  4. Set a `Authorization` variable to `Bearer <your-token>` at the collection level to authenticate all requests.
+
+  **Insomnia**
+  1. Open Insomnia and create a new **Design Document**.
+  2. Click **Import** → **From URL** and enter `http://localhost:9000/openapi.json`.
+  3. Insomnia imports all routes with schema validation for request bodies.
+  4. Add a request header `Authorization: Bearer <your-token>` to the base environment.
+</Accordion>
+
+## Example: List Agents with `curl`
+
+The following request authenticates with a Bearer token and fetches the first page of agents visible to the caller. The `agentType` query parameter narrows results to internal agents only:
+
+```bash
+curl --request GET \
+  --url 'http://localhost:9000/api/agents?agentType=agent&limit=20&offset=0' \
+  --header 'Authorization: Bearer <your-token>' \
+  --header 'Accept: application/json'
+```
+
+A successful response returns a paginated object with a `data` array of agent records and a `total` count. You can further filter by `name`, `scope`, `teamIds`, `authorIds`, or `labels` query parameters — see the full schema in the OpenAPI spec.
+
+## Terraform and Crossplane
+
+The same API key used to authenticate direct REST calls also authenticates the **Terraform provider** and **Crossplane provider** for Archestra. Both providers read credentials from the `ARCHESTRA_API_KEY` environment variable (or accept them inline) and the `ARCHESTRA_BASE_URL` variable pointing to your instance.
+
+<Steps>
+  <Step title="Mint an API key">
+    Go to **Settings → API Keys** and create a personal key, or go to **Settings → Service Accounts** to create a service account token for CI use. See the [Authentication](#authentication) section above.
+  </Step>
+  <Step title="Configure the Terraform provider">
+    Export your credentials and define the provider block:
+
+    ```bash
+    export ARCHESTRA_API_KEY=arch_...
+    export ARCHESTRA_BASE_URL=https://api.archestra.example.com
+    ```
+
+    ```terraform
+    terraform {
+      required_providers {
+        archestra = {
+          source = "archestra-ai/archestra"
+        }
+      }
+    }
+
+    provider "archestra" {}
+    ```
+  </Step>
+  <Step title="Or configure the Crossplane provider">
+    Store credentials in a Kubernetes secret and reference them in a `ProviderConfig`:
+
+    ```bash
+    kubectl create secret generic archestra-creds \
+      -n crossplane-system \
+      --from-literal=credentials='{"api_key":"arch_...","base_url":"https://api.archestra.example.com"}'
+    ```
+
+    ```yaml
+    apiVersion: archestra.crossplane.io/v1beta1
+    kind: ProviderConfig
+    metadata:
+      name: default
+    spec:
+      credentials:
+        source: Secret
+        secretRef:
+          namespace: crossplane-system
+          name: archestra-creds
+          key: credentials
+    ```
+  </Step>
+</Steps>
+
+For full resource coverage, examples, and provider installation instructions, see the [Deployment guide](/deployment).

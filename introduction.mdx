@@ -1,0 +1,86 @@
+---
+title: "Archestra: MCP-Native Enterprise AI Platform Overview"
+sidebarTitle: "Introduction"
+description: "Discover how Archestra unifies MCP orchestration, LLM gateway, agent builder, security guardrails, and observability into one composable enterprise AI platform."
+---
+
+Archestra is a centralized AI platform designed for organizations where software engineers and non-technical teams all need to work with AI agents. A non-technical user can enjoy a simple ChatGPT-like UI and get immediate results, while a technical user can build agents with LangChain, N8N, plain Python, or any stack of choice — all leveraging the same MCP orchestrator, guardrails, and observability layer. Archestra reduces friction and increases AI adoption across every role in the organization. The team behind Archestra previously worked on Grafana OnCall, and the platform reflects that same commitment to operational reliability.
+
+<Note>
+  Archestra is a CNCF Linux Foundation project. It is built as an open, composable platform — you can adopt all of Archestra, a few components, or even just one, integrating with tools you already have such as n8n, LiteLLM, Grafana, or custom MCP servers.
+</Note>
+
+## Who Archestra Is For
+
+Archestra was designed with three distinct audiences in mind, and serves each of them differently.
+
+<CardGroup cols={3}>
+  <Card title="Platform Teams" icon="shield-halved">
+    Centralize MCP servers away from individual machines, manage credentials and data access policies, prevent data exfiltration, and control AI costs across the organization.
+  </Card>
+  <Card title="Developers" icon="code">
+    Deploy MCP servers org-wide, build and ship autonomous agents without worrying about security plumbing, and connect any framework — LangChain, Vercel AI, Pydantic AI, Mastra — through a single gateway.
+  </Card>
+  <Card title="Management" icon="chart-line">
+    Bring one-click MCP adoption to the whole organization for technical and non-technical users alike. Reduce AI costs up to 96% and gain full visibility into AI adoption, usage, and data access.
+  </Card>
+</CardGroup>
+
+## Composable Components
+
+Archestra is built as a set of composable components. Most organizations already have tools like n8n, LiteLLM, Grafana, or custom MCP servers in their infrastructure. You can adopt all of Archestra or integrate only the pieces you need.
+
+### Agentic Chat
+
+A ChatGPT-like interface for non-technical users. Talk to agents via the web UI, Slack, Microsoft Teams, or Email. Includes a private, company-wide prompt registry so teams can share and reuse proven prompts.
+
+### Agent Runtime
+
+A no-code builder for autonomous agents. Define system prompts, assign MCP tools and sub-agents, configure triggers, and deploy agents to production — all without writing infrastructure code.
+
+### MCP Orchestrator
+
+Run MCP servers as isolated pods in a Kubernetes cluster. The orchestrator manages their lifecycle, API keys, and OAuth flows. Moving MCP servers from individual developer machines to a centralized, governed orchestrator is one of Archestra's core value propositions.
+
+### Knowledge Base
+
+A built-in RAG (Retrieval-Augmented Generation) Knowledge Base powered by pgvector for document chunking, embedding, and hybrid search. No external vector database or separate retrieval service required — give your agents access to your data out of the box.
+
+### LLM Proxy & MCP Gateway
+
+A drop-in proxy between your applications and LLM providers. The **LLM Proxy** handles authentication, cost tracking, and routing across commercial providers (OpenAI, Anthropic, Google Gemini) and self-hosted models (Ollama, vLLM). The **MCP Gateway** provides a single, authenticated endpoint for all MCP tools, compatible with any framework.
+
+### Security & Guardrails
+
+Deterministic tool invocation policies and trusted data policies that cannot be bypassed by prompt injection. Security sub-agents isolate dangerous tool responses from the main agent. These are **non-probabilistic** controls — not LLM-based filters — meaning they provide reliable, auditable enforcement rather than probabilistic best-effort detection.
+
+<Tip>
+  Archestra's security engine was designed to address the "Lethal Trifecta" of prompt injection, tool access, and data exfiltration — as covered by Simon Willison and The Economist. See the [Security & Guardrails docs](/security/overview) for details.
+</Tip>
+
+### Observability
+
+Prometheus metrics, OpenTelemetry tracing, and per-team cost tracking. Understand token and tool usage, latency, and cost on a per-org, per-agent, and per-team basis. Performance benchmarks show 45 ms at the 95th percentile.
+
+## Explore Archestra
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Run Archestra locally with Docker in minutes and build your first agent end-to-end.
+  </Card>
+  <Card title="Deployment" icon="server" href="/deployment">
+    Deploy to production with Helm, configure cloud provider timeouts, and manage infrastructure as code with Terraform or Crossplane.
+  </Card>
+  <Card title="MCP Orchestrator" icon="cubes" href="/mcp/orchestrator">
+    Learn how Archestra runs MCP servers as isolated Kubernetes pods with full lifecycle management.
+  </Card>
+  <Card title="LLM Proxy" icon="arrows-left-right" href="/llm-proxy/overview">
+    Secure, route, and track LLM API calls across your organization with virtual keys and cost limits.
+  </Card>
+  <Card title="Security & Guardrails" icon="lock" href="/security/overview">
+    Understand how Archestra's non-probabilistic guardrails prevent prompt injection and data exfiltration.
+  </Card>
+  <Card title="Observability" icon="chart-mixed" href="/administration/observability">
+    Set up Prometheus metrics, OpenTelemetry traces, and per-team cost dashboards.
+  </Card>
+</CardGroup>

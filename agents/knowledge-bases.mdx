@@ -1,0 +1,247 @@
+---
+title: "Agent Knowledge Bases: Built-In RAG Retrieval Pipeline"
+sidebarTitle: "Knowledge Bases"
+description: "Connect agents to internal data with built-in RAG — chunking, embedding, hybrid search, and reranking run entirely inside Archestra."
+---
+
+Knowledge Bases give your agents access to company data — Jira issues, Confluence pages, GitHub repositories, Notion workspaces, SharePoint libraries, Google Drive files, Salesforce records, and more — without hardcoding any of those sources into the prompt. The full RAG pipeline (chunking, embedding, hybrid search, and reranking) runs entirely inside Archestra. No external vector database or separate retrieval service is required.
+
+When at least one knowledge source is assigned to an agent, Archestra automatically adds the built-in `query_knowledge_sources` tool. The model calls it during a run to search across all assigned sources and pull the most relevant documents into its answer.
+
+## Configuration
+
+Before creating a Knowledge Base, open **Settings > Knowledge** and configure both an embedding model and a reranking model. Neither Knowledge Bases nor connectors can be used until both are set.
+
+<CardGroup cols={2}>
+  <Card title="Embedding Configuration" icon="vector-square">
+    Pick the API key and embedding model. The model vectorizes ingested documents for semantic search. It is locked once saved — both indexing and querying must use the same model. To change it, click **Drop** to clear the index; all documents are re-embedded on the next sync.
+
+    Supported embedding dimensions: **768**, **1536**, **3072**. If your key does not appear, go to **LLM Providers > Models**, sync the provider, and set the dimensions for the embedding model.
+  </Card>
+  <Card title="Reranking Configuration" icon="bars-sort">
+    Pick the LLM key and chat model that scores and reorders search results by relevance. Any configured LLM provider key and chat model can be used here — this is separate from the embedding model.
+  </Card>
+</CardGroup>
+
+## How Retrieval Works
+
+Connectors run on a cron schedule, pulling documents that are chunked and embedded into PostgreSQL with pgvector.
+
+At query time, the agent's input is embedded and then both vector search and optional full-text search run in parallel. Results are fused using Reciprocal Rank Fusion, reranked by the configured LLM, and filtered by ACL before being returned to the agent.
+
+<Note>
+  The entire RAG stack runs within PostgreSQL — no external vector database is required.
+</Note>
+
+## Creating a Knowledge Base
+
+A Knowledge Base is a named collection of connectors. Create one from the **Knowledge** page, then assign one or more connectors to it. The same Knowledge Base can be reused across multiple agents and MCP Gateways.
+
+<Steps>
+  <Step title="Open the Knowledge page">
+    Navigate to **Knowledge** in the left sidebar and click **New Knowledge Base**.
+  </Step>
+  <Step title="Name and save">
+    Give the Knowledge Base a descriptive name and click **Create**.
+  </Step>
+  <Step title="Add connectors">
+    Inside the Knowledge Base, add one or more connectors to pull data from your external systems.
+  </Step>
+  <Step title="Assign to an agent">
+    Open the agent's edit dialog, scroll to **Knowledge Sources**, and select the Knowledge Base.
+  </Step>
+</Steps>
+
+## Files (Static Uploads)
+
+Files are static documents uploaded from **Knowledge > Files** and assigned directly to agents or MCP Gateways. Use files when you want reusable retrieval from individual documents without setting up an external connector.
+
+**Supported file types:** `.txt`, `.md`, `.csv`, `.json`, `.xml`, `.pdf`
+
+Files use the same visibility model as other knowledge resources:
+
+| Mode | Behavior |
+| --- | --- |
+| **Owner** | Only the uploader can view and query the file. |
+| **Teams** | Only members of selected teams can view and query the file. |
+| **Organization** | Anyone in the organization can view and query the file. |
+
+<Note>
+  Chat attachments stay with one conversation. To reuse an attachment across sessions, save it to **Knowledge > Files** from within the chat.
+</Note>
+
+## Connector Visibility
+
+Each connector has a visibility setting that controls which users can retrieve its data when an agent calls `query_knowledge_sources`. Users only see sources they have access to, and only those can be assigned to agents.
+
+| Mode | Behavior |
+| --- | --- |
+| **Org-wide** | All documents accessible to every user in the organization. |
+| **Team-scoped** | Documents accessible only to members of the assigned teams. |
+| **Auto-sync permissions** | ACL entries synced from the source system (user emails, groups). Coming soon. |
+
+Users with the `knowledgeSource:admin` role can view and query every connector regardless of visibility.
+
+<Warning>
+  Team-scoped visibility and auto-synced ACLs require an enterprise license. Contact [sales@archestra.ai](mailto:sales@archestra.ai) for licensing information.
+</Warning>
+
+## Supported Connectors
+
+<Accordion title="Jira — Issues and Comments">
+  Syncs issue descriptions, comments, and metadata from Jira Cloud or Server.
+
+  **Authentication:** Atlassian account email and an [API token](https://id.atlassian.com/manage-profile/security/api-tokens).
+
+  | Field | Description |
+  | --- | --- |
+  | Base URL | Your Jira instance URL (e.g., `https://your-domain.atlassian.net`) |
+  | Cloud Instance | Toggle on for Jira Cloud, off for Jira Server/Data Center |
+  | Project Keys | Comma-separated project keys to include (optional) |
+  | JQL Query | Custom JQL to filter issues (optional) |
+  | Comment Email Blacklist | Comma-separated emails whose comments are excluded (optional) |
+  | Labels to Skip | Comma-separated issue labels to exclude (optional) |
+</Accordion>
+
+<Accordion title="Confluence — Wiki Pages">
+  Syncs pages from Confluence Cloud or Server.
+
+  **Authentication:** Same Atlassian email and API token used for Jira.
+
+  | Field | Description |
+  | --- | --- |
+  | URL | Your Confluence instance URL (e.g., `https://your-domain.atlassian.net/wiki`) |
+  | Cloud Instance | Toggle on for Cloud, off for Server/Data Center |
+  | Space Keys | Comma-separated space keys to sync (optional) |
+  | Page IDs | Comma-separated specific page IDs to sync (optional) |
+  | CQL Query | Custom CQL to filter content (optional) |
+  | Labels to Skip | Comma-separated labels to exclude (optional) |
+  | Batch Size | Pages per batch (default: 50) |
+</Accordion>
+
+<Accordion title="GitHub — Issues, PRs, and Files">
+  Syncs issues, pull request discussions, comments, and selected repository files from GitHub.com or GitHub Enterprise Server. Defaults to Markdown and YAML files when repository file indexing is enabled.
+
+  **Authentication:** Personal access token, or a GitHub App configured under **Settings > GitHub Apps**.
+
+  | Field | Description |
+  | --- | --- |
+  | GitHub API URL | API endpoint (e.g., `https://api.github.com`) |
+  | Owner | GitHub organization or username |
+  | Authentication Method | Personal access token or GitHub App |
+  | Repositories | Comma-separated repository names (optional — leave blank for all org repos) |
+  | Include Issues | Sync issues and their comments (default: on) |
+  | Include Pull Requests | Sync pull requests and their comments (default: on) |
+  | Include Repository Files | Sync repository files (default: off) |
+  | File Types | Comma-separated file extensions when repository files are enabled (defaults: `.md`, `.mdx`, `.yaml`, `.yml`) |
+  | Labels to Skip | Comma-separated labels to exclude (optional) |
+</Accordion>
+
+<Accordion title="Notion — Pages and Databases">
+  Syncs pages from a Notion workspace.
+
+  **Authentication:** [Notion integration token](https://www.notion.so/my-integrations) (starts with `secret_`). Create an internal integration and share the relevant pages or databases with it.
+
+  | Field | Description |
+  | --- | --- |
+  | Database IDs | Comma-separated Notion database IDs (optional — leave blank for all accessible pages) |
+  | Page IDs | Comma-separated specific page IDs (optional — takes precedence over Database IDs) |
+</Accordion>
+
+<Accordion title="SharePoint — Documents and Site Pages">
+  Syncs documents and site pages from SharePoint Online. Supported types include `.txt`, `.md`, `.csv`, `.json`, `.xml`, `.html`, `.yaml`, `.docx`, `.pdf`, and `.pptx`. Image files up to 4 MB are indexed when a multimodal embedding model is configured.
+
+  **Authentication:** Azure AD app registration with `Sites.Read.All` application permission on Microsoft Graph (admin consent required).
+
+  | Field | Description |
+  | --- | --- |
+  | Tenant ID | Your Azure AD (Entra ID) tenant ID or domain |
+  | Site URL | Your SharePoint site URL |
+  | Client ID | Azure AD app registration Application (client) ID |
+  | Client Secret | Azure AD app registration client secret value |
+  | Drive IDs | Comma-separated document library IDs (optional) |
+  | Folder Path | Restrict sync to a specific folder path (optional) |
+  | Recursive | Traverse subfolders (default: on) |
+  | Include Pages | Sync site pages and web part content (default: on) |
+</Accordion>
+
+<Accordion title="Google Drive — Files and Workspace Docs">
+  Syncs files from My Drive and Shared Drives. Supports `.txt`, `.md`, `.csv`, `.json`, `.xml`, `.html`, `.yaml`, `.docx`, `.pdf`, `.pptx`, Google Docs, Sheets, and Slides. Image files are indexed when a multimodal embedding model is configured. Files larger than 10 MB are skipped.
+
+  **Authentication:** Service account JSON key (recommended) or a short-lived OAuth2 access token with `drive.readonly` scope.
+
+  | Field | Description |
+  | --- | --- |
+  | Drive IDs | Comma-separated shared drive IDs (optional — leave blank for My Drive) |
+  | Folder ID | Restrict sync to a specific folder (optional) |
+  | File Types | Comma-separated extensions (optional — leave blank for all) |
+  | Recursive Traversal | Sync files from all nested subfolders (default: on) |
+</Accordion>
+
+<Accordion title="Salesforce — CRM Records">
+  Syncs CRM records from a Salesforce org. Defaults to `Account`, `Contact`, `Opportunity`, and `Case`.
+
+  **Authentication:** Salesforce username, password, and security token. Enter the password directly concatenated with the security token in the Password + Security Token field (no separator).
+
+  | Field | Description |
+  | --- | --- |
+  | Login URL | Salesforce login endpoint (default: `https://login.salesforce.com`) |
+  | Email | Your Salesforce username |
+  | Password + Security Token | Password concatenated with security token (e.g., `MyPassword123XXYYZZ`) |
+  | Objects | Comma-separated Salesforce object API names (optional — leave blank for defaults) |
+  | Advanced Object Config JSON | Optional JSON for precise field and association control |
+
+  Example advanced config:
+
+  ```json
+  {
+    "Lead": {
+      "fields": ["FirstName", "LastName", "Company", "Email"],
+      "associations": { "Account": ["Name"] }
+    },
+    "Case": {
+      "fields": ["Subject", "Status", "Priority", "Description"]
+    }
+  }
+  ```
+</Accordion>
+
+<Accordion title="Other Supported Connectors">
+  Archestra also ships connectors for:
+
+  - **GitLab** — issues and merge request discussions from GitLab.com or self-hosted instances
+  - **Asana** — tasks and user comments from selected Asana projects
+  - **ServiceNow** — incidents, change requests, problems, and business applications
+  - **OneDrive** — files from OneDrive for Business personal drives (work/school accounts only)
+  - **Dropbox** — text and source files from Dropbox accounts or team folders
+  - **Linear** — issues, projects, and cycles from a Linear workspace
+  - **Outline** — published documents from an Outline workspace
+
+  Each connector is configured from **Knowledge > Connectors > New Connector**.
+</Accordion>
+
+## Assigning a Knowledge Base to an Agent
+
+<Steps>
+  <Step title="Open the agent">
+    Go to **Agents** in the left sidebar and click the agent you want to attach knowledge to, or create a new one.
+  </Step>
+  <Step title="Open Knowledge Sources">
+    In the **Edit Agent** dialog, scroll to the **Knowledge Sources** section.
+  </Step>
+  <Step title="Select sources">
+    Click **Select connectors or knowledge bases** and pick one or more entries from the **Knowledge Bases** and **Connectors** lists. An agent can be assigned multiple Knowledge Bases and individual connectors simultaneously.
+  </Step>
+  <Step title="Save">
+    Click **Update** to save. The agent now has a `query_knowledge_sources` tool that searches across everything attached to it.
+  </Step>
+</Steps>
+
+## Managing Connectors
+
+Open any connector from the **Connectors** page to:
+
+- **Toggle enabled/disabled** — suspends or resumes the cron sync schedule
+- **Trigger sync** — runs an immediate sync outside the schedule
+- **View indexed documents** — browse, preview, and delete documents produced by the connector
+- **View runs** — see sync history with status, document counts, and any errors

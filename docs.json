@@ -1,72 +1,115 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mintlify Starter Kit",
+  "name": "Archestra",
+  "theme": "luma",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#7c7c7c",
+    "light": "#050505",
+    "dark": "#cacaca"
   },
-  "favicon": "/favicon.svg",
-  "navigation": {
-    "pages": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "quickstart"
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
+  "favicon": "https://media.brand.dev/a0fbc5e7-0411-434b-a6fa-4150a076c771.jpg",
   "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
     "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
+      "type": "github",
+      "href": "https://github.com/archestra-ai/archestra"
     }
-  },
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
-    ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "github": "https://github.com/archestra-ai/archestra"
     }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "deployment"
+            ]
+          },
+          {
+            "group": "MCP",
+            "pages": [
+              "mcp/overview",
+              "mcp/private-registry",
+              "mcp/gateway",
+              "mcp/orchestrator",
+              "mcp/authentication"
+            ]
+          },
+          {
+            "group": "Agents",
+            "pages": [
+              "agents/overview",
+              "agents/knowledge-bases",
+              "agents/triggers",
+              "agents/chat",
+              "agents/integrations"
+            ]
+          },
+          {
+            "group": "LLM Proxy",
+            "pages": [
+              "llm-proxy/overview",
+              "llm-proxy/authentication",
+              "llm-proxy/supported-providers",
+              "llm-proxy/costs-and-limits"
+            ]
+          },
+          {
+            "group": "Security",
+            "pages": [
+              "security/overview",
+              "security/tool-guardrails",
+              "security/dual-llm",
+              "security/secrets-management"
+            ]
+          },
+          {
+            "group": "Administration",
+            "pages": [
+              "administration/access-control",
+              "administration/sso",
+              "administration/observability",
+              "administration/environment-variables"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/n8n",
+              "integrations/vercel-ai",
+              "integrations/mastra",
+              "integrations/openwebui",
+              "integrations/pydantic-ai"
+            ]
+          },
+          {
+            "group": "Contributing",
+            "pages": [
+              "contributing/developer-quickstart",
+              "contributing/guidelines",
+              "contributing/security"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api-reference/overview"
+            ]
+          }
+        ]
+      }
+    ]
   }
 }
